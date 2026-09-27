@@ -53,18 +53,6 @@ class LocalPersistenceProvider implements PersistenceProvider {
   constructor() {
     if (this.isBrowser) {
       try {
-        // Auto-purge any stale pyforge keys and legacy python drafts
-        const pyforgeKeys: string[] = [];
-        for (let i = 0; i < localStorage.length; i++) {
-          const k = localStorage.key(i);
-          if (k && k.startsWith('pyforge_')) {
-            pyforgeKeys.push(k);
-          }
-        }
-        for (const k of pyforgeKeys) {
-          localStorage.removeItem(k);
-        }
-
         // Version-gated reset: wipe stale progress data when DB is re-seeded
         const storedVersion = localStorage.getItem('sqlquest_data_version');
         if (storedVersion !== PERSISTENCE_DATA_VERSION) {
@@ -113,9 +101,6 @@ class LocalPersistenceProvider implements PersistenceProvider {
   async loadDraft(problemId: number | string, fileType: 'solution' | 'schema' = 'solution'): Promise<string | null> {
     if (!this.isBrowser) return null;
     try {
-      // Also check and wipe any leftover pyforge draft
-      localStorage.removeItem(`pyforge_draft_${problemId}`);
-
       const key = fileType === 'schema' ? `sqlquest_draft_schema_${problemId}` : `sqlquest_draft_${problemId}`;
       const code = localStorage.getItem(key);
       if (!code) return null;
@@ -285,8 +270,7 @@ class LocalPersistenceProvider implements PersistenceProvider {
         if (
           k &&
           (k.startsWith('sqlquest_draft_') ||
-            k.startsWith('sqlquest_last_saved_') ||
-            k.startsWith('pyforge_'))
+            k.startsWith('sqlquest_last_saved_'))
         ) {
           toRemove.push(k);
         }
