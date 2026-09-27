@@ -44,16 +44,21 @@ async def resolve_challenge(db: AsyncSession, identifier: Union[int, str]) -> Op
             if ch:
                 return ch
 
-    # 3. Numeric string or integer (e.g. '001' or 1 -> 001, SQL-001, or fallback to id)
+    # 3. Numeric string or integer (check primary key id first, then fallback to pattern match)
     if query_str.isdigit():
         num = int(query_str)
+        # Direct primary key match (e.g. 1 -> Basics-001)
+        res = await db.execute(select(Challenge).where(Challenge.id == num))
+        ch = res.scalars().first()
+        if ch:
+            return ch
+
         padded = f"{num:03d}"
         res = await db.execute(
             select(Challenge).where(
                 (Challenge.code_id == padded) |
                 (Challenge.code_id == f"SQL-{num:03d}") |
-                ((Challenge.track != "fundamentals") & (Challenge.level_number == num)) |
-                (Challenge.id == num)
+                ((Challenge.track != "fundamentals") & (Challenge.level_number == num))
             )
         )
         ch = res.scalars().first()

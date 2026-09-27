@@ -24,7 +24,7 @@ async def get_player_profile(
         total_challenges = len(all_challenges)
     else:
         total_ch_res = await db.execute(select(func.count(Challenge.id)))
-        total_challenges = total_ch_res.scalar() or 250
+        total_challenges = total_ch_res.scalar() or 100
         ch_res = await db.execute(select(Challenge).order_by(Challenge.id.asc()))
         all_challenges = ch_res.scalars().all()
         if all_challenges:
@@ -95,7 +95,7 @@ async def get_player_profile(
     if not strengths:
         strengths.append("Quick Learner (Starting Journey)")
     if not weak_topics:
-        weak_topics.append("Keep practicing advanced algorithms!")
+        weak_topics.append("Keep practicing advanced SQL queries!")
 
     # Consolidated: get total and passed submission counts in ONE query
     sub_res = await db.execute(
@@ -165,7 +165,7 @@ async def get_user_submissions(
             "code_id": ch.code_id,
             "problemTitle": ch.title,
             "passed": s.status == "PASSED",
-            "runtimeMs": int(s.execution_time_ms) if s.execution_time_ms else 22,
+            "runtimeMs": int(s.execution_time_ms) if s.execution_time_ms else 12,
             "timestamp": ts,
             "code": s.code
         })

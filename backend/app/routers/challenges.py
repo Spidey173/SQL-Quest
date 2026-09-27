@@ -59,6 +59,7 @@ async def list_chapters(
 
     # Group by chapter
     chapters_dict = {}
+    current_cid = None
     prev_passed = True
 
     for ch in challenges:
@@ -70,13 +71,17 @@ async def list_chapters(
                 "levels": [],
                 "completed_count": 0
             }
+            # The first problem in each chapter is always unlocked for discovery
+            prev_passed = True
 
         # IMPORTANT: Only look up by exact primary key (ch.id), NOT by level_number.
         prog = user_progress_map.get(ch.id)
         passed = bool(prog.passed) if prog else False
         stars = prog.stars if prog else 0
 
-        is_unlocked = (ch.code_id in ("Basics-001", "SQL-001")) or (ch.level_number == 1) or prev_passed or (current_user and current_user.role == "admin")
+        # Unlocked if first in chapter, previous passed, already passed, or admin
+        is_first_in_chapter = len(chapters_dict[cid]["levels"]) == 0
+        is_unlocked = is_first_in_chapter or prev_passed or passed or (current_user and current_user.role == "admin")
 
         summary = ChallengeSummary(
             id=ch.id,
