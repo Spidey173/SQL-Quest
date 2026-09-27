@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import {
   Lock, Unlock, Sparkles, Trophy, Check,
   Copy, ArrowRight, Zap, AlertTriangle, BookOpen, Clock,
-  Cpu, HelpCircle, Layers, Database, Server
+  Cpu, HelpCircle, Layers
 } from 'lucide-react';
 import { ChallengeDetail } from '@/lib/types';
 import { getProblemSolution, ProblemSolution } from '@/lib/problem-intelligence';
@@ -20,7 +20,7 @@ interface SolutionVaultProps {
   problem: ChallengeDetail;
   isSolved: boolean;
   unlocked: boolean;
-  hintsUsedCount: number;
+  hintsUsedCount?: number;
   onUnlock: () => void;
   onLoadCodeToEditor: (code: string) => void;
   onSubmitCode?: () => void;
@@ -231,20 +231,30 @@ export const SolutionVault: React.FC<SolutionVaultProps> = ({
                 })}
               </div>
 
-              {/* Single Action: Load to Editor */}
-              <button
-                onClick={() => {
-                  handleLoad(activeCode);
-                  if (activeDialect !== 'sqlite') {
-                    setLoadedDialectMsg(`Loaded ${SQL_DIALECTS[activeDialect].name} syntax. Sandbox executes in SQLite.`);
-                    setTimeout(() => setLoadedDialectMsg(null), 4000);
-                  }
-                }}
-                className="px-2.5 py-1 rounded bg-[#1F6FEB] hover:bg-[#388BFD] text-white transition-all flex items-center gap-1 text-[11px] font-semibold shadow-sm shrink-0"
-              >
-                {loaded ? <Check className="w-3 h-3" /> : <ArrowRight className="w-3 h-3" />}
-                <span>{loaded ? 'Loaded!' : 'Load to Editor'}</span>
-              </button>
+              {/* Actions: Copy & Load to Editor */}
+              <div className="flex items-center gap-1.5 shrink-0">
+                <button
+                  onClick={() => handleCopy(activeCode)}
+                  className="px-2 py-1 rounded bg-[#21262D] hover:bg-[#30363D] border border-[#30363D] text-[#C9D1D9] hover:text-white transition-all flex items-center gap-1 text-[11px] font-medium shadow-sm cursor-pointer"
+                  title="Copy Solution SQL"
+                >
+                  {copiedCode ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                  <span>{copiedCode ? 'Copied' : 'Copy'}</span>
+                </button>
+                <button
+                  onClick={() => {
+                    handleLoad(activeCode);
+                    if (activeDialect !== 'sqlite') {
+                      setLoadedDialectMsg(`Loaded ${SQL_DIALECTS[activeDialect].name} syntax. Sandbox executes in SQLite.`);
+                      setTimeout(() => setLoadedDialectMsg(null), 4000);
+                    }
+                  }}
+                  className="px-2.5 py-1 rounded bg-[#1F6FEB] hover:bg-[#388BFD] text-white transition-all flex items-center gap-1 text-[11px] font-semibold shadow-sm cursor-pointer"
+                >
+                  {loaded ? <Check className="w-3 h-3" /> : <ArrowRight className="w-3 h-3" />}
+                  <span>{loaded ? 'Loaded!' : 'Load to Editor'}</span>
+                </button>
+              </div>
             </div>
 
             {/* Subtle Non-sandbox Dialect Note */}
@@ -310,7 +320,7 @@ export const SolutionVault: React.FC<SolutionVaultProps> = ({
           {solution.beginnerTraps && solution.beginnerTraps.length > 0 && (
             <div className="space-y-2.5">
               <span className="text-xs font-mono uppercase tracking-wider text-[#D29922] font-bold flex items-center gap-1.5">
-                <AlertTriangle className="w-3.5 h-3.5 text-[#D29922]" /> Beginner Traps & "Why Not Do This?"
+                <AlertTriangle className="w-3.5 h-3.5 text-[#D29922]" /> Beginner Traps &amp; &quot;Why Not Do This?&quot;
               </span>
               <div className="space-y-2">
                 {solution.beginnerTraps.map((trap, idx) => (
@@ -329,7 +339,7 @@ export const SolutionVault: React.FC<SolutionVaultProps> = ({
                 🎯 The Golden Engineering Takeaway:
               </span>
               <p className="text-white font-medium leading-relaxed">
-                "{solution.keyTakeaway}"
+                &quot;{solution.keyTakeaway}&quot;
               </p>
             </div>
           )}

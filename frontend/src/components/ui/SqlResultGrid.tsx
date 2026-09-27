@@ -1,10 +1,10 @@
 import React, { useMemo } from 'react';
-import { Table, CheckCircle2, AlertCircle, Clock, Database, ArrowRight } from 'lucide-react';
+import { Table, CheckCircle2, AlertCircle, Clock, Database } from 'lucide-react';
 
 interface SqlQueryResultTableProps {
   rawOutput?: string;
   columns?: string[];
-  rows?: any[][];
+  rows?: (string | number | boolean | null | undefined)[][];
   error?: string;
   expectedOutput?: string;
   isVerification?: boolean;
@@ -73,7 +73,6 @@ export const SqlResultGrid: React.FC<SqlQueryResultTableProps> = ({
   columns,
   rows,
   error,
-  expectedOutput,
   isVerification = false,
   isSuccess = true,
   executionTimeMs = 12,
@@ -89,8 +88,6 @@ export const SqlResultGrid: React.FC<SqlQueryResultTableProps> = ({
     }
     return parseSqlOutput(rawOutput);
   }, [columns, rows, rawOutput]);
-
-  const expectedParsed = parseSqlOutput(expectedOutput);
 
   if (error) {
     return (

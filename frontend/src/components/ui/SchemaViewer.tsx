@@ -27,17 +27,9 @@ export function SchemaViewer({
   }, [dynamicTables]);
 
   const [activeTableIndex, setActiveTableIndex] = useState<number>(0);
-  const [copied, setCopied] = useState(false);
   const [copiedDdl, setCopiedDdl] = useState(false);
 
   const currentTable = tables[activeTableIndex] || tables[0] || null;
-
-  const copyTableName = () => {
-    if (!currentTable) return;
-    navigator.clipboard.writeText(currentTable.name);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
-  };
 
   const copyDdlSql = () => {
     if (!setupSql) return;

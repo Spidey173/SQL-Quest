@@ -447,16 +447,16 @@ export default function WorkspacePage({ params }: { params: Promise<{ id: string
       const passedCount = res.test_results?.filter((t) => t.passed).length || 0;
       const totalCount = res.test_results?.length || 0;
       const testSummary = res.test_results && res.test_results.length > 0
-        ? `rootdir: ~/SQL\ncollected ${totalCount} items\n\n` +
-          res.test_results.map((t) => `test_solution.sql::test_case_${t.test_case_index} ${t.passed ? 'PASSED' : 'FAILED'}${!t.passed && t.actual_output ? ` (got: ${t.actual_output.trim()})` : ''}`).join('\n') +
-          `\n\n============================== ${passedCount}/${totalCount} passed in ${(duration / 1000).toFixed(2)}s ==============================`
+        ? `engine: SQLite v3.45 • relational_tests\ncollected ${totalCount} test suites\n\n` +
+          res.test_results.map((t) => `test_query.sql::test_suite_${t.test_case_index} ${t.passed ? 'PASSED' : 'FAILED'}${!t.passed && t.actual_output ? ` (got: ${t.actual_output.trim()})` : ''}`).join('\n') +
+          `\n\n============================== ${passedCount}/${totalCount} suites passed in ${(duration / 1000).toFixed(2)}s ==============================`
         : (res.stdout || '');
 
       setTerminalHistory((prev) => [
         ...prev.slice(-25),
         {
           id: Math.random().toString(36).substring(7),
-          command: 'pytest tests/ -v',
+          command: 'run_tests --engine sqlite --target query.sql',
           stdin: undefined,
           stdout: testSummary,
           stderr: res.stderr || (res.security_error ? `[Security Error] ${res.security_error}` : ''),
@@ -742,7 +742,7 @@ export default function WorkspacePage({ params }: { params: Promise<{ id: string
       setActiveConsoleTab('tests');
 
       const res = await api.submitCode(targetCodeId, code, hintTier, sessionId);
-      const duration = 22;
+      const duration = Math.max(1, Math.round(res.execution_time_ms || 12));
       setLastExecutionRuntime(duration);
 
       await persistence.recordSubmission({
@@ -986,9 +986,9 @@ export default function WorkspacePage({ params }: { params: Promise<{ id: string
   const nextProblem = currentIndex >= 0 && currentIndex < allProblems.length - 1 ? allProblems[currentIndex + 1] : null;
 
   const currentCodeId = problem?.code_id || problemParam;
-  const isMaster = Boolean(problem && (problem.track === 'master' || problem.chapter_id >= 13));
-  const isBasics = currentCodeId.startsWith('Basic');
-  const isAdvanced = Boolean(problem && (problem.chapter_id >= 8 && problem.chapter_id <= 12 || (problem as any).track === 'advanced'));
+  const isMaster = Boolean(problem && (problem.track === 'master' || problem.chapter_id === 8 || problem.chapter_id === 9 || currentCodeId.startsWith('Pro-')));
+  const isBasics = Boolean(problem && (problem.track === 'fundamentals' || (problem.chapter_id >= 1 && problem.chapter_id <= 4) || currentCodeId.startsWith('Basic')));
+  const isAdvanced = Boolean(problem && (problem.chapter_id === 7 || (problem as any).track === 'advanced' || currentCodeId.startsWith('ASQL-')));
   const stepperColorClass = isMaster ? 'text-[#38BDF8]' : isBasics ? 'text-[#48BB78]' : isAdvanced ? 'text-[#A855F7]' : 'text-[#FF6B00]';
   const isCurrentProblemSolved = problem ? (isProblemSolved(problem, solvedIds, allProblems) || Boolean(problem.passed)) : false;
 
@@ -1327,7 +1327,7 @@ export default function WorkspacePage({ params }: { params: Promise<{ id: string
             {activeTab === 'interview' && problem && (
               <InterviewPanel
                 problem={problem}
-                isSolved={isSolutionUnlocked}
+                isSolved={isCurrentProblemSolved || isSolutionUnlocked}
                 onClose={() => setActiveTab('spec')}
               />
             )}

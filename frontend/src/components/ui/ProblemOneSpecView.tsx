@@ -1,5 +1,5 @@
 import React from 'react';
-import { Code2, Building2, Layers } from 'lucide-react';
+import { Code2, Building2, Layers, CheckCircle2 } from 'lucide-react';
 import { ChallengeDetail } from '@/lib/types';
 
 interface ProblemSpecViewProps {
@@ -7,7 +7,7 @@ interface ProblemSpecViewProps {
   onInsertCode?: (code: string) => void;
 }
 
-export const ProblemOneSpecView: React.FC<ProblemSpecViewProps> = ({ problem, onInsertCode }) => {
+export const ProblemOneSpecView: React.FC<ProblemSpecViewProps> = ({ problem }) => {
   const codeId = problem?.code_id || 'Basics-001';
   const chapterTitle = problem?.chapter_title || 'Module 1: Basic SQL';
   const difficulty = problem?.difficulty || 'Easy';
@@ -77,6 +77,19 @@ export const ProblemOneSpecView: React.FC<ProblemSpecViewProps> = ({ problem, on
             {objective}
           </blockquote>
         </div>
+
+        {/* Expected Output Preview */}
+        {problem?.expected_output && (
+          <div className="rounded-xl border border-[#242424] bg-[#121212] p-4 sm:p-5 space-y-2.5 shadow-sm">
+            <span className="text-[11px] font-mono font-bold text-[#48BB78] uppercase tracking-wider flex items-center gap-1.5">
+              <CheckCircle2 className="w-4 h-4 text-[#48BB78]" />
+              EXPECTED OUTPUT SCHEMA & PREVIEW
+            </span>
+            <div className="bg-[#090909] border border-[#202020] rounded-lg p-3 font-mono text-xs text-[#D4D4D4] overflow-x-auto whitespace-pre leading-relaxed">
+              {problem.expected_output.trim()}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
