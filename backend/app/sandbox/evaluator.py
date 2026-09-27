@@ -328,34 +328,6 @@ def evaluate_sql_submission(
     }
 
 
-def calculate_rewards_and_stars(*args, **kwargs) -> Dict[str, Any]:
-    passed_all = kwargs.get("passed_all", True)
-    base_xp = kwargs.get("base_xp", 100)
-    base_coins = kwargs.get("base_coins", 25)
-
-    if not passed_all:
-        return {
-            "stars": 0,
-            "xp_earned": 0,
-            "coins_earned": 0,
-            "speed_bonus": 0,
-            "combo_bonus": 0,
-            "perfect_score": False,
-            "total_xp": 0,
-            "total_coins": 0
-        }
-
-    return {
-        "stars": 3,
-        "xp_earned": base_xp + 55,
-        "coins_earned": base_coins,
-        "speed_bonus": 25,
-        "combo_bonus": 30,
-        "perfect_score": True,
-        "total_xp": base_xp + 55,
-        "total_coins": base_coins
-    }
-
 
 async def evaluate_challenge_test_cases(
     user_query: str,
