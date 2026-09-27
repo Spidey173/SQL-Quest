@@ -119,9 +119,11 @@ export default function DashboardPage() {
           resolvedSolved = Array.from(new Set([...backendSolved, ...validLocalSolved]));
         }
         
-        setChapters(chaps);
+        if (chaps && chaps.length > 0) {
+          setChapters(chaps);
+        }
         setSolvedIds(resolvedSolved);
-        setLastActiveId(lastId || 'SQL-001');
+        setLastActiveId(lastId || 'Basics-001');
         setSubmissions(subs);
       } catch (e) {
         console.error('Failed to load dashboard state:', e);
@@ -172,19 +174,14 @@ export default function DashboardPage() {
     );
     if (active && !isProblemSolved(active, solvedIds, allProblems)) return active;
 
-    const sql001 = allProblems.find((p) => p.code_id === 'SQL-001');
-    if (sql001 && !isProblemSolved(sql001, solvedIds, allProblems)) return sql001;
-
     const nextUnsolved = allProblems.find((p) => !isProblemSolved(p, solvedIds, allProblems));
     return nextUnsolved || allProblems[0];
   }, [allProblems, lastActiveId, solvedIds]);
 
   const problemCodeToContinue = useMemo(() => {
-    if (!lastActiveProblem) return 'SQL-001';
-    const num = lastActiveProblem.level_number || 1;
-    const padded = String(num).padStart(3, '0');
-    return lastActiveProblem.code_id || (lastActiveProblem.chapter_id <= 2 ? `Basics-${padded}` : `SQL-${padded}`);
-  }, [lastActiveProblem]);
+    if (!lastActiveProblem) return 'Basics-001';
+    return getCanonicalCodeId(lastActiveProblem, allProblems) || lastActiveProblem.code_id || 'Basics-001';
+  }, [lastActiveProblem, allProblems]);
 
   const timelineModules = useMemo(() => {
     return MODULE_DEFINITIONS.map((def) => {
@@ -282,10 +279,21 @@ export default function DashboardPage() {
                   </thead>
                   <tbody className="divide-y divide-[#1C1C1C]">
                     {visibleSubmissions.map((sub, idx) => {
-                      const subProblemId = typeof sub.problemId === 'string'
-                        ? sub.problemId
-                        : `SQL-${String(sub.problemId).padStart(3, '0')}`;
+                      const subProblemId = getCanonicalCodeId(sub.problemId, allProblems) || (
+                        typeof sub.problemId === 'string'
+                          ? sub.problemId
+                          : `Basics-${String(sub.problemId).padStart(3, '0')}`
+                      );
                       const isBasics = subProblemId.startsWith('Basic');
+                      const isMaster = subProblemId.startsWith('Pro');
+                      const isAdvanced = subProblemId.startsWith('ASQL');
+                      const idColorClass = isMaster
+                        ? 'text-[#38BDF8]'
+                        : isBasics
+                          ? 'text-[#48BB78]'
+                          : isAdvanced
+                            ? 'text-[#A855F7]'
+                            : 'text-[#FF6B00]';
                       return (
                         <tr
                           key={sub.id || idx}
@@ -301,14 +309,14 @@ export default function DashboardPage() {
                           <td className="py-2.5 px-3">
                             <ApertureStatus status={sub.passed ? 'passed' : 'failed'} />
                           </td>
-                          <td className={`py-2.5 px-3 font-mono font-bold ${isBasics ? 'text-[#48BB78]' : 'text-[#FF6B00]'}`}>
+                          <td className={`py-2.5 px-3 font-mono font-bold ${idColorClass}`}>
                             {subProblemId}
                           </td>
                           <td className="py-2.5 px-3 font-sans font-medium text-[#D4D4D4]">
                             {sub.problemTitle || `Problem #${sub.problemId}`}
                           </td>
                           <td className="py-2.5 px-3 font-mono text-[#888888] text-right">
-                            {sub.runtimeMs ? `${sub.runtimeMs} ms` : '22 ms'}
+                            {sub.runtimeMs !== undefined && sub.runtimeMs !== null ? `${sub.runtimeMs} ms` : '< 1 ms'}
                           </td>
                           <td className="py-2.5 px-3 font-mono text-[#888888] text-right" title={new Date(sub.timestamp).toLocaleString()}>
                             {formatExecutionTime(sub.timestamp)}

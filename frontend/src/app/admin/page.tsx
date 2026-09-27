@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { api } from '@/lib/api';
-import { sounds } from '@/lib/audio-engine';
+import { sounds } from '@/lib/audio';
 import { User, ChapterGroup } from '@/lib/types';
 import { Shield } from 'lucide-react';
 
@@ -89,7 +89,7 @@ export default function AdminDashboardPage() {
                 activeTab === 'challenges' ? 'bg-violet-600 text-white' : 'text-zinc-400'
               }`}
             >
-              Challenges (50)
+              Challenges ({metrics?.total_challenges ?? (chapters.flatMap(c => c.levels).length || 100)})
             </button>
             <button
               onClick={() => {
@@ -119,7 +119,7 @@ export default function AdminDashboardPage() {
               <div className="rounded-2xl border border-cyan-800/40 bg-zinc-900/60 p-5 backdrop-blur-xl">
                 <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">Curriculum Levels</span>
                 <p className="mt-2 font-mono text-3xl font-black text-cyan-400">
-                  {metrics?.total_challenges ?? 50}
+                  {metrics?.total_challenges ?? (chapters.flatMap(c => c.levels).length || 100)}
                 </p>
               </div>
 

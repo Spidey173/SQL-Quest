@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { api } from '@/lib/api';
-import { persistence, isProblemSolved } from '@/lib/persistence';
+import { persistence, isProblemSolved, getCanonicalCodeId } from '@/lib/persistence';
 import { ChapterGroup, ChallengeSummary } from '@/lib/types';
 import { TechnicalDifficulty, ApertureStatus, EngravedSQLChip } from '@/components/ui/Badge';
 import { AuthModal } from '@/components/ui/AuthModal';
@@ -59,7 +59,17 @@ function CurriculumExplorerContent() {
               : 'all'
       : 'all');
 
-  const [chapters, setChapters] = useState<ChapterGroup[]>([]);
+  const [chapters, setChapters] = useState<ChapterGroup[]>(() => {
+    if (typeof window === 'undefined') return [];
+    try {
+      const cached = localStorage.getItem('sqlquest_curriculum_fast_v1');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+    return [];
+  });
   const [solvedIds, setSolvedIds] = useState<number[]>([]);
   const [activeTrack, setActiveTrack] = useState<'all' | 'fundamentals' | 'core' | 'advanced' | 'master'>(defaultTrack);
   const [selectedModule, setSelectedModule] = useState<number | 'all'>(
@@ -69,23 +79,17 @@ function CurriculumExplorerContent() {
   const [statusFilter, setStatusFilter] = useState<'all' | 'solved' | 'unsolved'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'table' | 'modules'>('table');
-  const [loading, setLoading] = useState(true);
-
-  // Instantly hydrate from local cache on mount if available (0ms render like localhost)
-  useEffect(() => {
+  const [loading, setLoading] = useState(() => {
+    if (typeof window === 'undefined') return true;
     try {
       const cached = localStorage.getItem('sqlquest_curriculum_fast_v1');
       if (cached) {
         const parsed = JSON.parse(cached);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setChapters(parsed);
-          setLoading(false);
-        }
+        if (Array.isArray(parsed) && parsed.length > 0) return false;
       }
-    } catch {
-      // ignore
-    }
-  }, []);
+    } catch {}
+    return true;
+  });
 
   useEffect(() => {
     async function loadData(forceRefresh = false) {
@@ -94,18 +98,21 @@ function CurriculumExplorerContent() {
           api.getChapters(forceRefresh).catch(() => [] as ChapterGroup[]),
           persistence.getSolvedIds().catch(() => [] as number[]),
         ]);
-        if (Array.isArray(chaps) && chaps.length > 0) {
-          try {
-            localStorage.setItem('sqlquest_curriculum_fast_v1', JSON.stringify(chaps));
-          } catch {
-            // ignore
+        setChapters((prev) => {
+          const effective = (chaps && chaps.length > 0) ? chaps : prev;
+          if (chaps && chaps.length > 0) {
+            try {
+              localStorage.setItem('sqlquest_curriculum_fast_v1', JSON.stringify(chaps));
+            } catch {
+              // ignore
+            }
           }
-          setChapters(chaps);
-        }
-        const flatLevels = ((chaps && chaps.length > 0) ? chaps : chapters).flatMap((c) => c.levels || []);
-        const backendSolved = flatLevels.filter((l) => l.passed).map((l) => l.id);
-        const merged = Array.from(new Set([...backendSolved, ...localSolved]));
-        setSolvedIds(merged);
+          const flatLevels = effective.flatMap((c) => c.levels || []);
+          const backendSolved = flatLevels.filter((l) => l.passed).map((l) => l.id);
+          const merged = Array.from(new Set([...backendSolved, ...localSolved]));
+          setSolvedIds(merged);
+          return effective;
+        });
       } catch (err) {
         console.error('Failed to load curriculum:', err);
       } finally {
@@ -148,13 +155,15 @@ function CurriculumExplorerContent() {
       if (targetChap) {
         const belongsToCurrent = trackChapters.some((c) => c.chapter_id === selectedModule);
         if (!belongsToCurrent) {
-          if (targetChap.chapter_id <= 4) setActiveTrack('fundamentals');
-          else if (targetChap.chapter_id <= 6) setActiveTrack('core');
-          else if (targetChap.chapter_id === 7) setActiveTrack('advanced');
-          else if (targetChap.chapter_id <= 9) setActiveTrack('master');
+          setTimeout(() => {
+            if (targetChap.chapter_id <= 4) setActiveTrack('fundamentals');
+            else if (targetChap.chapter_id <= 6) setActiveTrack('core');
+            else if (targetChap.chapter_id === 7) setActiveTrack('advanced');
+            else if (targetChap.chapter_id <= 9) setActiveTrack('master');
+          }, 0);
         }
       } else {
-        setSelectedModule('all');
+        setTimeout(() => setSelectedModule('all'), 0);
       }
     }
   }, [chapters, trackChapters, selectedModule]);
@@ -506,9 +515,9 @@ function CurriculumExplorerContent() {
                       ) : (
                         filteredProblems.map((problem) => {
                           const isSolved = isProblemSolved(problem, solvedIds, trackProblems);
-                          const problemCode = problem.code_id || (problem.chapter_id <= 2 ? `Basics-${String(problem.level_number).padStart(3, '0')}` : `SQL-${String(problem.level_number).padStart(3, '0')}`);
+                          const problemCode = getCanonicalCodeId(problem, trackProblems) || problem.code_id || `Basics-${String(problem.level_number || 1).padStart(3, '0')}`;
                           const isMaster = problem.track === 'master' || problem.chapter_id === 8 || problem.chapter_id === 9 || problemCode.startsWith('Pro-');
-                          const isBasics = problemCode.startsWith('Basics');
+                          const isBasics = problem.track === 'fundamentals' || (problem.chapter_id >= 1 && problem.chapter_id <= 4) || problemCode.startsWith('Basics');
                           const isAdvanced = problem.chapter_id === 7 || problem.track === 'advanced' || problemCode.startsWith('ASQL-');
                           const idColorClass = isMaster
                             ? 'text-[#38BDF8]'

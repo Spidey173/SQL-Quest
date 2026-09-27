@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { TechnicalDifficulty, EngravedSQLChip } from './Badge';
+import { TechnicalDifficulty } from './Badge';
 
 /**
  * MachinedPanel: Structural surface made of black titanium with milled seams and micro-chamfers.
@@ -130,7 +130,7 @@ export function TelemetryConsoleRibbon({
               <span className="text-xs font-normal text-[#888888]">MODULES</span>
             </div>
             <p className="font-mono text-[11px] text-[#666666] mt-0.5">
-              35 Fundamentals • 120 Core • 95 Advanced
+              35 Fundamentals • 35 Core • 10 Advanced • 20 Master
             </p>
           </div>
         </div>
@@ -171,7 +171,7 @@ export function JourneyHero({
   solvedCount,
   totalCount = 100,
   streakDays = 0,
-  nextProblemId = 'SQL-001',
+  nextProblemId = 'Basics-001',
   nextProblemTitle,
   onContinue,
 }: {
@@ -202,6 +202,11 @@ export function JourneyHero({
             <span className="font-mono text-[10px] text-[#777777] uppercase tracking-wider">
               RELATIONAL DATABASE MASTERCLASS
             </span>
+            {streakDays > 0 && (
+              <span className="font-mono text-[10px] text-[#FFC857] bg-[#1A180C] border border-[#3A3215] px-2 py-0.5 rounded-[3px] ml-auto">
+                ⚡ {streakDays} DAY STREAK
+              </span>
+            )}
           </div>
 
           <h1 className="text-2xl sm:text-4xl font-extrabold text-[#F5F5F5] tracking-tight leading-tight">
