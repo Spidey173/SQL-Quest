@@ -3,7 +3,7 @@
 import React from 'react';
 import {
   Layers, Database, Server, Cpu, Check, AlertTriangle,
-  Sparkles, Globe, ArrowRight
+  Sparkles
 } from 'lucide-react';
 import {
   DialectComparison,

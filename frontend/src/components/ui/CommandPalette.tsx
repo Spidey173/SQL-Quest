@@ -6,8 +6,8 @@ import {
   Search, BookOpen, LayoutDashboard, BarChart2,
   Terminal, CornerDownLeft, RotateCcw, Copy, Check
 } from 'lucide-react';
-import { TechnicalDifficulty, EngravedSQLChip } from './Badge';
-import { ALL_50_SOLUTIONS } from '@/lib/solutions-data';
+import { TechnicalDifficulty } from './Badge';
+import { ALL_PROBLEM_SOLUTIONS } from '@/lib/ranked-solutions-data';
 
 export interface CommandItem {
   id: string;
@@ -30,18 +30,15 @@ interface CommandPaletteProps {
 }
 
 const MODULES = [
-  { id: 1, title: 'Module 1: Basic SQL Projections & Filters' },
-  { id: 2, title: 'Module 2: Aggregate Functions & Metrics' },
-  { id: 3, title: 'Module 3: GROUP BY & Threshold Filtering' },
-  { id: 4, title: 'Module 4: Relational Multi-Table Joins' },
-  { id: 5, title: 'Module 5: Scalar & Correlated Subqueries' },
-  { id: 6, title: 'Module 6: Analytical Window Functions' },
-  { id: 7, title: 'Module 7: Common Table Expressions (CTEs)' },
-  { id: 8, title: 'Module 8: CASE & Conditional Expressions' },
-  { id: 9, title: 'Module 9: String Manipulation & Parsing' },
-  { id: 10, title: 'Module 10: Date & Timestamp Arithmetic' },
-  { id: 11, title: 'Module 11: Deduplication & Set Operations' },
-  { id: 12, title: 'Module 12: Advanced Relational Analytics' },
+  { id: 1, title: 'Module 1: Projections & Filtering' },
+  { id: 2, title: 'Module 2: Aggregations & Grouping' },
+  { id: 3, title: 'Module 3: Basic Joins & Set Operations' },
+  { id: 4, title: 'Module 4: Predicates & Built-in Functions' },
+  { id: 5, title: 'Module 5: Business Aggregations & Thresholds' },
+  { id: 6, title: 'Module 6: Relational Joins & Data Integrity' },
+  { id: 7, title: 'Module 7: Conditional Logic & Transformations' },
+  { id: 8, title: 'Module 8: Temporal Analysis & Subquery Aggregations' },
+  { id: 9, title: 'Module 9: Hierarchical Relational Joins & Set Algebra' },
 ];
 
 export function CommandPalette({
@@ -61,9 +58,11 @@ export function CommandPalette({
 
   useEffect(() => {
     if (isOpen) {
-      setQuery('');
-      setSelectedIndex(0);
-      setTimeout(() => inputRef.current?.focus(), 50);
+      setTimeout(() => {
+        setQuery('');
+        setSelectedIndex(0);
+        inputRef.current?.focus();
+      }, 10);
 
       const handleGlobalKeyDown = (e: KeyboardEvent) => {
         if (e.key === 'Escape') {
@@ -134,6 +133,18 @@ export function CommandPalette({
       });
     }
 
+    if (onToggleSidebar) {
+      items.push({
+        id: 'action-toggle-sidebar',
+        category: 'Actions',
+        title: 'Toggle Specification Sidebar',
+        subtitle: 'Expand or collapse the challenge specification panel',
+        shortcut: 'Ctrl+B',
+        icon: <BookOpen className="h-4 w-4 text-[#888888]" />,
+        perform: () => { onToggleSidebar(); onClose(); },
+      });
+    }
+
     if (onToggleConsole) {
       items.push({
         id: 'action-toggle-console',
@@ -174,24 +185,29 @@ export function CommandPalette({
       });
     });
 
-    // All Real SQL Problems
-    const allSolutions = Object.values(ALL_50_SOLUTIONS || {});
-    allSolutions.forEach((sol) => {
-      const pId = sol.levelNumber;
-      const diff = pId <= 50 ? 'Easy' : pId <= 150 ? 'Medium' : 'Hard';
+    // All Real SQL Problems (all 100 curriculum challenges)
+    const seenCodes = new Set<string>();
+    const allSolutions = Object.values(ALL_PROBLEM_SOLUTIONS || {});
+    allSolutions.forEach((sol: any) => {
+      const codeId = sol.code_id || (sol.numeric_id ? `Basics-${String(sol.numeric_id).padStart(3, '0')}` : null);
+      if (!codeId || seenCodes.has(codeId)) return;
+      seenCodes.add(codeId);
+
+      const pId = sol.numeric_id || sol.levelNumber || 1;
+      const diff = pId <= 35 ? 'Easy' : pId <= 70 ? 'Medium' : 'Hard';
       items.push({
-        id: `problem-${pId}`,
+        id: `problem-${codeId}`,
         category: 'Problems',
-        title: `SQL-${String(pId).padStart(3, '0')}: ${sol.title}`,
-        subtitle: `Jump directly to Problem #${pId}`,
+        title: `${codeId}: ${sol.title}`,
+        subtitle: `Jump directly to ${codeId} (#${pId})`,
         badge: diff,
         icon: <Terminal className="h-4 w-4 text-[#FF6B00]" />,
-        perform: () => { router.push(`/quest/${pId}`); onClose(); },
+        perform: () => { router.push(`/quest/${codeId}`); onClose(); },
       });
     });
 
     return items;
-  }, [currentProblemId, onResetCode, onToggleConsole, copiedLink, router, onClose]);
+  }, [currentProblemId, onResetCode, onToggleSidebar, onToggleConsole, copiedLink, router, onClose]);
 
   const filteredCommands = useMemo(() => {
     if (!query.trim()) return allCommands.slice(0, 30);
@@ -207,9 +223,7 @@ export function CommandPalette({
       .slice(0, 40);
   }, [allCommands, query]);
 
-  useEffect(() => {
-    setSelectedIndex(0);
-  }, [query]);
+
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'ArrowDown') {
@@ -240,7 +254,10 @@ export function CommandPalette({
             ref={inputRef}
             type="text"
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setSelectedIndex(0);
+            }}
             onKeyDown={handleKeyDown}
             placeholder="Search SQL challenges, modules, or actions..."
             className="w-full bg-transparent text-[#F5F5F5] placeholder-[#555555] outline-none text-xs font-mono"

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   MessageSquare,
   AlertTriangle,
@@ -14,6 +14,7 @@ import {
   Code,
   X,
   Maximize2,
+  Minimize2,
   Lock
 } from 'lucide-react';
 import { ChallengeDetail } from '@/lib/types';
@@ -31,7 +32,7 @@ type TabType = 'interview' | 'mistakes';
 export const InterviewPanel: React.FC<InterviewPanelProps> = ({ problem, isSolved = false, onClose }) => {
   const data = getProblemStudyData(problem);
   const [activeTab, setActiveTab] = useState<TabType>('interview');
-  const [isOpen, setIsOpen] = useState(true);
+  const [isExpanded, setIsExpanded] = useState(false);
 
   // Interview Q&A State
   const [searchQuery, setSearchQuery] = useState('');
@@ -48,14 +49,15 @@ export const InterviewPanel: React.FC<InterviewPanelProps> = ({ problem, isSolve
     'fallback-q1': true,
   });
 
-  const handleClose = () => {
-    setIsOpen(false);
-    if (onClose) {
+  const handleClose = useCallback(() => {
+    if (isExpanded) {
+      setIsExpanded(false);
+    } else if (onClose) {
       onClose();
     }
-  };
+  }, [isExpanded, onClose]);
 
-  // Handle ESC key to close
+  // Handle ESC key to minimize or close
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -64,7 +66,7 @@ export const InterviewPanel: React.FC<InterviewPanelProps> = ({ problem, isSolve
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [handleClose]);
 
   const handleCopyAnswer = (id: string, text: string) => {
     navigator.clipboard.writeText(text);
@@ -95,356 +97,336 @@ export const InterviewPanel: React.FC<InterviewPanelProps> = ({ problem, isSolve
   // Strictly lock Interview Q&A if challenge has not been solved/submitted
   if (!isSolved) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200 select-none font-sans">
-        <div className="w-full max-w-lg flex flex-col items-center justify-center p-8 bg-[#0D1117] border border-[#30363D] rounded-2xl shadow-2xl text-center space-y-6 relative overflow-hidden">
-          <div className="absolute w-64 h-64 rounded-full bg-gradient-to-tr from-purple-500/10 via-amber-500/10 to-blue-500/10 blur-3xl pointer-events-none" />
+      <div className="flex flex-col items-center justify-center min-h-[460px] p-6 text-center select-none font-sans">
+        <div className="w-full max-w-md flex flex-col items-center justify-center p-6 bg-[#121212] border border-[#242424] rounded-2xl shadow-xl text-center space-y-5 relative overflow-hidden">
+          <div className="absolute w-48 h-48 rounded-full bg-gradient-to-tr from-[#FF6B00]/10 via-[#FFA116]/10 to-transparent blur-2xl pointer-events-none" />
 
           {/* Holographic Lock */}
-          <div className="relative z-10 w-16 h-16 rounded-2xl bg-gradient-to-b from-[#1F242C] to-[#161B22] border border-[#30363D] flex items-center justify-center shadow-xl">
-            <Lock className="w-8 h-8 text-[#D29922]" />
+          <div className="relative z-10 w-14 h-14 rounded-2xl bg-[#1A1A1A] border border-[#333333] flex items-center justify-center shadow-lg">
+            <Lock className="w-7 h-7 text-[#FF6B00]" />
           </div>
 
-          <div className="relative z-10 space-y-2">
-            <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-[#D29922]/15 text-[#D29922] text-[11px] font-mono font-semibold border border-[#D29922]/30">
-              <Lock className="w-3 h-3" /> INTERVIEW PREP HUB LOCKED
+          <div className="relative z-10 space-y-1.5">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#FF6B00]/15 text-[#FF6B00] text-[10px] font-mono font-semibold border border-[#FF6B00]/30">
+              <Lock className="w-3 h-3" /> INTERVIEW PREP LOCKED
             </span>
-            <h3 className="text-xl font-bold text-[#F0F6FC] tracking-tight">
-              Submit Your Code to Unlock
+            <h3 className="text-lg font-bold text-[#F5F5F5] tracking-tight">
+              Pass Test Cases to Unlock
             </h3>
-            <p className="text-xs text-[#8B949E] leading-relaxed max-w-sm mx-auto">
-              Unlock 15+ spoken interview scripts, Database Query Engines & Indexing, and rookie pitfalls once your code passes all test suites!
+            <p className="text-xs text-[#888888] leading-relaxed max-w-xs mx-auto">
+              Unlock spoken interview scripts, execution plan trade-offs, and rookie traps once your query passes all test suites!
             </p>
           </div>
 
           {/* Unlock Requirements */}
-          <div className="relative z-10 w-full rounded-xl border border-[#21262D] bg-[#161B22]/80 backdrop-blur-md p-4 text-left space-y-2.5">
-            <span className="text-[10px] font-mono text-[#8B949E] uppercase tracking-wider font-semibold block">
+          <div className="relative z-10 w-full rounded-xl border border-[#222222] bg-[#161616] p-3.5 text-left space-y-2">
+            <span className="text-[10px] font-mono text-[#777777] uppercase tracking-wider font-semibold block">
               How to Unlock:
             </span>
-            <div className="space-y-2 text-xs">
-              <div className="flex items-center gap-2.5 text-[#E6EDF3]">
-                <div className="w-4 h-4 rounded-full bg-purple-500/20 text-purple-400 border border-purple-500/30 flex items-center justify-center text-[10px] font-bold">
+            <div className="space-y-1.5 text-xs">
+              <div className="flex items-center gap-2 text-[#D4D4D4]">
+                <div className="w-4 h-4 rounded-full bg-[#FF6B00]/20 text-[#FF6B00] border border-[#FF6B00]/40 flex items-center justify-center text-[10px] font-bold">
                   1
                 </div>
-                <span>Implement your solution in <strong>solution.py</strong></span>
+                <span>Draft your query in <strong>query.sql</strong></span>
               </div>
-              <div className="flex items-center gap-2.5 text-[#E6EDF3]">
-                <div className="w-4 h-4 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center text-[10px] font-bold">
+              <div className="flex items-center gap-2 text-[#D4D4D4]">
+                <div className="w-4 h-4 rounded-full bg-[#48BB78]/20 text-[#48BB78] border border-[#48BB78]/40 flex items-center justify-center text-[10px] font-bold">
                   2
                 </div>
-                <span>Click <strong>Submit</strong> and pass all test cases</span>
+                <span>Click <strong>Submit</strong> and pass all test suites</span>
               </div>
             </div>
           </div>
 
-          <div className="relative z-10 w-full pt-1">
-            <button
-              onClick={handleClose}
-              className="w-full py-2.5 px-4 rounded-xl bg-[#21262D] hover:bg-[#30363D] border border-[#30363D] text-xs font-bold text-[#F0F6FC] transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md"
-            >
-              <span>Back to Code Editor</span>
-            </button>
-          </div>
+          {onClose && (
+            <div className="relative z-10 w-full pt-1">
+              <button
+                onClick={onClose}
+                className="w-full py-2 px-3 rounded-lg bg-[#222222] hover:bg-[#2A2A2A] border border-[#333333] text-xs font-semibold text-[#F5F5F5] transition-all flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <span>Back to Specification</span>
+              </button>
+            </div>
+          )}
         </div>
       </div>
     );
   }
 
-  if (!isOpen) {
-    return (
-      <div className="flex flex-col items-center justify-center h-full p-8 text-center bg-[#0D1117] text-[#C9D1D9]">
-        <div className="p-4 rounded-2xl bg-[#161B22] border border-[#30363D] max-w-md space-y-4 shadow-xl">
-          <MessageSquare className="w-10 h-10 text-[#58A6FF] mx-auto" />
-          <h3 className="text-lg font-bold text-[#F0F6FC]">Interview & Common Mistakes Hub</h3>
-          <p className="text-xs text-[#8B949E] leading-relaxed">
-            15+ high-yield spoken interview Q&As and rookie mistake traps ready in full-screen modal mode.
-          </p>
+  const renderInnerContent = () => (
+    <div className="flex-1 min-h-0 flex flex-col bg-[#0D1117]">
+      {/* Top Header Bar */}
+      <div className="px-3.5 sm:px-4 py-2.5 border-b border-[#242424] bg-[#121212] flex items-center justify-between shrink-0 gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded border border-[#333333] bg-[#0E0E0E] text-[#FF6B00] shrink-0">
+            {data.difficulty}
+          </span>
+          <div className="min-w-0">
+            <h2 className="text-xs sm:text-sm font-bold text-[#F5F5F5] truncate">
+              {data.problemTitle} — Interview Study Hub
+            </h2>
+            <div className="flex items-center gap-1.5 text-[10px] text-[#888888] truncate mt-0.5">
+              <Building2 className="w-3 h-3 text-[#FF6B00] shrink-0" />
+              <span className="truncate">Asked by: {data.companyTags.slice(0, 4).join(', ')}</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-1.5 shrink-0">
           <button
-            onClick={() => setIsOpen(true)}
-            className="w-full py-2.5 rounded-xl bg-[#58A6FF] hover:bg-[#4F8CFF] text-white font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-md"
+            onClick={() => setIsExpanded(!isExpanded)}
+            className="p-1.5 rounded-[4px] bg-[#1A1A1A] hover:bg-[#222222] border border-[#2A2A2A] text-[#888888] hover:text-[#F5F5F5] transition-colors flex items-center gap-1 text-[11px] font-semibold cursor-pointer"
+            title={isExpanded ? 'Minimize to Sidebar (Esc)' : 'Expand Fullscreen'}
           >
-            <Maximize2 className="w-4 h-4" />
-            <span>Open Full-Screen Interview Hub</span>
+            {isExpanded ? (
+              <>
+                <Minimize2 className="w-3.5 h-3.5 text-[#58A6FF]" />
+                <span className="hidden sm:inline">Minimize</span>
+              </>
+            ) : (
+              <>
+                <Maximize2 className="w-3.5 h-3.5 text-[#FF6B00]" />
+                <span className="hidden sm:inline">Expand</span>
+              </>
+            )}
           </button>
+          {onClose && (
+            <button
+              onClick={onClose}
+              className="p-1.5 rounded-[4px] bg-[#1A1A1A] hover:bg-[#222222] border border-[#2A2A2A] text-[#888888] hover:text-[#F85149] transition-colors cursor-pointer"
+              title="Close Interview View"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Mode Buttons */}
+      <div className="px-3 sm:px-4 py-1.5 border-b border-[#202020] bg-[#161616] flex items-center gap-2 shrink-0">
+        <button
+          onClick={() => setActiveTab('interview')}
+          className={`px-3 py-1 rounded-[4px] text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
+            activeTab === 'interview'
+              ? 'bg-[#FF6B00] text-black shadow-sm font-bold'
+              : 'text-[#888888] hover:text-[#F5F5F5] hover:bg-[#222222]'
+          }`}
+        >
+          <MessageSquare className="w-3.5 h-3.5" />
+          <span>Interview Q&amp;A ({data.questions.length})</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('mistakes')}
+          className={`px-3 py-1 rounded-[4px] text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
+            activeTab === 'mistakes'
+              ? 'bg-[#FF6B00] text-black shadow-sm font-bold'
+              : 'text-[#888888] hover:text-[#F5F5F5] hover:bg-[#222222]'
+          }`}
+        >
+          <AlertTriangle className="w-3.5 h-3.5" />
+          <span>Rookie Pitfalls ({data.mistakes.length})</span>
+        </button>
+      </div>
+
+      {/* Scrollable Content Container */}
+      <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain custom-scrollbar p-3 sm:p-5 space-y-4 pb-12">
+        {activeTab === 'interview' && (
+          <div className="space-y-4 max-w-4xl mx-auto">
+            {/* Search Bar */}
+            <div className="relative">
+              <Search className="w-4 h-4 absolute left-3 top-2.5 text-[#666666]" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search questions (e.g. 'Indexing', 'Execution Plan', 'SARGable', 'Joins')..."
+                className="w-full pl-9 pr-3 py-2 rounded-lg bg-[#161B22] border border-[#30363D] text-xs text-[#F0F6FC] placeholder-[#666666] focus:outline-none focus:border-[#FF6B00]"
+              />
+            </div>
+
+            {/* Questions List */}
+            <div className="space-y-3">
+              {filteredQuestions.map((q, idx) => {
+                const isItemExpanded = expandedQA[q.id] ?? true;
+
+                return (
+                  <div
+                    key={q.id}
+                    className="rounded-xl border border-[#242424] bg-[#121212] overflow-hidden shadow-sm"
+                  >
+                    <div
+                      onClick={() => toggleQA(q.id)}
+                      className="p-3.5 sm:p-4 flex items-start justify-between gap-3 cursor-pointer hover:bg-[#181818] transition-colors"
+                    >
+                      <div className="space-y-1.5 flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded border border-[#FF6B00]/40 bg-[#FF6B00]/10 text-[#FF6B00]">
+                            Q{idx + 1}
+                          </span>
+                          <span className="text-[10px] font-mono px-2 py-0.5 rounded border border-[#2A2A2A] bg-[#0E0E0E] text-[#888888]">
+                            {q.category}
+                          </span>
+                        </div>
+                        <h3 className="text-xs sm:text-sm font-bold text-[#F5F5F5] leading-snug">
+                          {q.question}
+                        </h3>
+                        <div className="text-[11px] text-[#888888] flex items-center gap-1.5 pt-0.5">
+                          <span className="font-semibold text-[#D4D4D4]">Evaluates:</span>
+                          <span className="truncate">{q.whatInterviewerChecks}</span>
+                        </div>
+                      </div>
+
+                      <button className="p-1 rounded bg-[#1A1A1A] border border-[#2A2A2A] text-[#888888] hover:text-[#F5F5F5] shrink-0">
+                        {isItemExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                      </button>
+                    </div>
+
+                    {isItemExpanded && (
+                      <div className="p-3.5 sm:p-4 pt-2 border-t border-[#202020] space-y-3 bg-[#0A0D12]">
+                        {/* Spoken Answer Quote Card */}
+                        <div className="rounded-lg border border-[#242424] bg-[#121212] p-3 space-y-2">
+                          <div className="flex items-center justify-between flex-wrap gap-2">
+                            <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-[#FF6B00] flex items-center gap-1.5">
+                              <Volume2 className="w-3.5 h-3.5" />
+                              Best Spoken Answer:
+                            </span>
+                            <button
+                              onClick={() => handleCopyAnswer(q.id, q.bestReplyScript)}
+                              className="px-2.5 py-1 rounded bg-[#202020] hover:bg-[#282828] border border-[#303030] text-[#D4D4D4] hover:text-white text-[11px] font-semibold flex items-center gap-1 transition-all cursor-pointer"
+                            >
+                              {copiedAnswerId === q.id ? (
+                                <>
+                                  <Check className="w-3 h-3 text-[#48BB78]" />
+                                  <span className="text-[#48BB78]">Copied</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Copy className="w-3 h-3" />
+                                  <span>Copy Script</span>
+                                </>
+                              )}
+                            </button>
+                          </div>
+                          <div className="text-xs sm:text-sm text-[#F0F6FC] leading-relaxed whitespace-pre-wrap font-sans">
+                            {q.bestReplyScript}
+                          </div>
+                        </div>
+
+                        {/* Key Terms Badges */}
+                        {q.keyPoints && q.keyPoints.length > 0 && (
+                          <div className="space-y-1.5">
+                            <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#777777] block">
+                              Key Concepts to Mention:
+                            </span>
+                            <div className="flex flex-wrap gap-1.5">
+                              {q.keyPoints.map((point, pIdx) => (
+                                <span
+                                  key={pIdx}
+                                  className="px-2 py-0.5 rounded border border-[#252525] bg-[#141414] text-[11px] font-medium text-[#C9D1D9]"
+                                >
+                                  • {point}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Full Code Follow-Up Snippet */}
+                        {q.codeSnippet && (
+                          <div className="space-y-1.5">
+                            <div className="flex items-center justify-between text-[11px] text-[#888888] pt-1">
+                              <span className="font-bold uppercase tracking-wider text-[#FF6B00] flex items-center gap-1">
+                                <Code className="w-3.5 h-3.5" />
+                                SQL Query Follow-Up:
+                              </span>
+                              <button
+                                onClick={() => handleCopyCode(q.id, q.codeSnippet!)}
+                                className="px-2 py-0.5 rounded border border-[#2A2A2A] bg-[#181818] hover:bg-[#222222] text-[10px] text-[#C9D1D9] hover:text-white flex items-center gap-1 transition-colors cursor-pointer"
+                              >
+                                {copiedCodeId === q.id ? <Check className="w-3 h-3 text-[#48BB78]" /> : <Copy className="w-3 h-3" />}
+                                <span>{copiedCodeId === q.id ? 'Copied' : 'Copy'}</span>
+                              </button>
+                            </div>
+
+                            <div className="rounded-lg border border-[#202020] bg-[#07090C] p-3 font-mono text-xs text-[#E6EDF3] leading-relaxed overflow-x-auto">
+                              <pre className="whitespace-pre-wrap break-words">{q.codeSnippet}</pre>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* TAB 2: COMMON MISTAKES */}
+        {activeTab === 'mistakes' && (
+          <div className="space-y-4 max-w-4xl mx-auto">
+            <div className="border-b border-[#242424] pb-3">
+              <h3 className="text-sm sm:text-base font-bold text-[#F0F6FC]">
+                ⚠️ Common Rookie Mistakes &amp; Traps
+              </h3>
+              <p className="text-xs text-[#888888] mt-0.5">
+                Top relational querying bugs and pitfalls candidates make during technical interviews.
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              {data.mistakes.map((m) => (
+                <div key={m.id} className="rounded-xl border border-[#242424] bg-[#121212] p-3.5 sm:p-4 space-y-3 shadow-sm min-w-0">
+                  <div className="flex items-start gap-2.5">
+                    <AlertTriangle className="w-4 h-4 text-[#F85149] shrink-0 mt-0.5" />
+                    <div className="min-w-0">
+                      <h4 className="text-xs sm:text-sm font-bold text-[#F5F5F5] break-words">{m.title}</h4>
+                      <p className="text-xs text-[#C9D1D9] leading-relaxed mt-0.5 break-words">
+                        {m.description}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    <div className="rounded-lg border border-[#F85149]/30 bg-[#F85149]/5 p-2.5 space-y-1 min-w-0 overflow-hidden">
+                      <span className="text-[10px] font-mono font-bold text-[#F85149] block">❌ Buggy Query Pattern</span>
+                      <code className="text-xs font-mono text-[#F0F6FC] block whitespace-pre-wrap break-words leading-relaxed">{m.badSnippet}</code>
+                    </div>
+
+                    <div className="rounded-lg border border-[#2A2A2A] bg-[#0E0E0E] p-2.5 space-y-1 min-w-0 overflow-hidden">
+                      <span className="text-[10px] font-mono font-bold text-[#888888] block">📥 Failing Tuple Case</span>
+                      <code className="text-xs font-mono text-[#FF9B42] block whitespace-pre-wrap break-words leading-relaxed">{m.failingInput}</code>
+                    </div>
+                  </div>
+
+                  <div className="rounded-lg border border-[#48BB78]/30 bg-[#48BB78]/5 p-2.5 space-y-1 min-w-0">
+                    <span className="text-[10px] font-mono font-bold text-[#48BB78] block">✅ How to Write Correctly</span>
+                    <p className="text-xs text-[#F0F6FC] font-medium leading-relaxed break-words">{m.howToFix}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  if (isExpanded) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200 select-text font-sans">
+        <div className="w-full max-w-5xl h-[92vh] flex flex-col bg-[#0D1117] border border-[#30363D] rounded-xl shadow-2xl overflow-hidden relative">
+          {renderInnerContent()}
         </div>
       </div>
     );
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center sm:p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200 select-text font-sans">
-      {/* Main Full-Screen Modal Window */}
-      <div className="w-full max-w-6xl h-full sm:h-[92vh] flex flex-col bg-[#0D1117] border-0 sm:border border-[#30363D] rounded-none sm:rounded-2xl shadow-2xl overflow-hidden relative">
-        
-        {/* Top Header Bar with Close Button */}
-        <div className="px-3.5 sm:px-5 py-3 border-b border-[#30363D] bg-[#161B22] flex items-center justify-between shrink-0 gap-2">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <span className="text-xs font-mono font-bold px-2 py-0.5 rounded border border-[#30363D] bg-[#0D1117] text-[#58A6FF] shrink-0">
-              {data.difficulty}
-            </span>
-            <div className="min-w-0">
-              <h2 className="text-sm sm:text-base font-bold text-[#F0F6FC] truncate">
-                {data.problemTitle} — Interview Study Hub
-              </h2>
-              <p className="text-[11px] sm:text-xs text-[#8B949E] truncate hidden sm:block">
-                Master technical interview spoken scripts, Database Query Engines & Indexing, and rookie coding traps.
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 shrink-0">
-            <div className="hidden md:flex items-center gap-1.5 text-xs text-[#8B949E]">
-              <Building2 className="w-3.5 h-3.5 text-[#58A6FF]" />
-              <span>Asked by:</span>
-              {data.companyTags.slice(0, 4).map((company) => (
-                <span key={company} className="px-2 py-0.5 rounded border border-[#30363D] bg-[#0D1117] text-[#C9D1D9] text-xs font-medium">
-                  {company}
-                </span>
-              ))}
-            </div>
-
-            {/* Prominent Top-Right Close Button (X) */}
-            <button
-              onClick={handleClose}
-              className="p-1.5 sm:p-2 rounded-xl bg-[#21262D] hover:bg-[#30363D] border border-[#30363D] text-[#8B949E] hover:text-[#F0F6FC] transition-colors flex items-center gap-1.5 text-xs font-semibold"
-              title="Close Interview Hub (Esc)"
-            >
-              <span className="hidden sm:inline text-xs text-[#8B949E]">Back to Code</span>
-              <X className="w-5 h-5 text-[#F85149]" />
-            </button>
-          </div>
-        </div>
-
-        {/* 2 Focused Mode Buttons */}
-        <div className="px-3 sm:px-5 py-2 border-b border-[#30363D]/60 bg-[#161B22]/80 flex items-center gap-2 shrink-0 overflow-x-auto no-scrollbar">
-          <button
-            onClick={() => setActiveTab('interview')}
-            className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 ${
-              activeTab === 'interview'
-                ? 'bg-[#58A6FF] text-white shadow-md'
-                : 'text-[#8B949E] hover:text-[#F0F6FC] hover:bg-[#21262D]'
-            }`}
-          >
-            <MessageSquare className="w-3.5 h-3.5" />
-            <span>Interview Q&A ({data.questions.length})</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('mistakes')}
-            className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 ${
-              activeTab === 'mistakes'
-                ? 'bg-[#58A6FF] text-white shadow-md'
-                : 'text-[#8B949E] hover:text-[#F0F6FC] hover:bg-[#21262D]'
-            }`}
-          >
-            <AlertTriangle className="w-3.5 h-3.5 text-[#F85149]" />
-            <span>Rookie Mistakes ({data.mistakes.length})</span>
-          </button>
-        </div>
-
-        {/* Scrollable Content Container */}
-        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain custom-scrollbar p-3 sm:p-6 md:p-10 space-y-4 sm:space-y-6 pb-20 sm:pb-10">
-          {/* ======================================================== */}
-          {/* TAB 1: INTERVIEW QUESTIONS & ANSWERS                     */}
-          {/* ======================================================== */}
-          {activeTab === 'interview' && (
-            <div className="space-y-6 max-w-5xl mx-auto">
-              {/* Top Banner & Search */}
-              <div className="space-y-4">
-                <div className="flex items-center justify-between flex-wrap gap-3">
-                  <div>
-                    <h3 className="text-lg sm:text-xl font-extrabold text-[#F0F6FC] tracking-tight">
-                      💬 Technical Interview Q&A Bank ({filteredQuestions.length} Questions)
-                    </h3>
-                    <p className="text-xs sm:text-sm text-[#8B949E] mt-1">
-                      Complete interview questions, spoken reply scripts, Database Query Engines & Indexing, and full code follow-ups.
-                    </p>
-                  </div>
-                </div>
-
-                {/* Search Bar */}
-                <div className="relative">
-                  <Search className="w-5 h-5 absolute left-3.5 top-3.5 text-[#8B949E]" />
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search 15+ questions (e.g. 'Elevator Pitch', 'Memory', 'GIL', 'Built-in', 'Unicode')..."
-                    className="w-full pl-11 pr-4 py-3 rounded-xl bg-[#161B22] border border-[#30363D] text-sm text-[#F0F6FC] placeholder-[#8B949E] focus:outline-none focus:border-[#58A6FF] shadow-inner"
-                  />
-                </div>
-              </div>
-
-              {/* Questions List with Generous Spacing */}
-              <div className="space-y-6">
-                {filteredQuestions.map((q, idx) => {
-                  const isExpanded = expandedQA[q.id] ?? true;
-
-                  return (
-                    <div
-                      key={q.id}
-                      className="rounded-2xl border border-[#30363D] bg-[#161B22] overflow-hidden shadow-lg transition-all"
-                    >
-                      {/* Question Header */}
-                      <div
-                        onClick={() => toggleQA(q.id)}
-                        className="p-5 sm:p-6 flex items-start justify-between gap-4 cursor-pointer hover:bg-[#21262D]/50 transition-colors"
-                      >
-                        <div className="space-y-2.5 flex-1">
-                          <div className="flex items-center gap-2.5 flex-wrap">
-                            <span className="text-xs font-mono font-extrabold px-2.5 py-1 rounded-md border border-[#58A6FF]/40 bg-[#58A6FF]/10 text-[#58A6FF]">
-                              Q{idx + 1}
-                            </span>
-                            <span className="text-xs font-mono px-3 py-1 rounded-md border border-[#30363D] bg-[#0D1117] text-[#8B949E]">
-                              {q.category}
-                            </span>
-                          </div>
-                          <h3 className="text-base sm:text-lg font-extrabold text-[#F0F6FC] leading-snug">
-                            {q.question}
-                          </h3>
-                          <div className="text-xs sm:text-sm text-[#8B949E] flex items-center gap-1.5 pt-0.5">
-                            <span className="font-semibold text-[#C9D1D9]">What interviewer evaluates:</span>
-                            <span>{q.whatInterviewerChecks}</span>
-                          </div>
-                        </div>
-
-                        <button className="p-2 rounded-xl bg-[#0D1117] border border-[#30363D] text-[#8B949E] hover:text-[#F0F6FC]">
-                          {isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
-                        </button>
-                      </div>
-
-                      {/* Expanded Answer Body with Generous Whitespace */}
-                      {isExpanded && (
-                        <div className="p-6 sm:p-7 pt-2 border-t border-[#30363D]/80 space-y-6 bg-[#0D1117]/60">
-                          {/* 1. Spoken Answer Quote Card */}
-                          <div className="rounded-[4px] border border-[#242424] bg-[#121212] p-4 sm:p-5 space-y-3">
-                            <div className="flex items-center justify-between flex-wrap gap-2">
-                              <span className="text-xs font-mono font-bold uppercase tracking-wider text-[#FF6B00] flex items-center gap-2">
-                                <Volume2 className="w-4 h-4" />
-                                Best Spoken Answer to Reply:
-                              </span>
-                              <button
-                                onClick={() => handleCopyAnswer(q.id, q.bestReplyScript)}
-                                className="px-3.5 py-1.5 rounded-xl border border-[#30363D] bg-[#21262D] hover:bg-[#30363D] text-[#C9D1D9] hover:text-[#F0F6FC] text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm"
-                              >
-                                {copiedAnswerId === q.id ? (
-                                  <>
-                                    <Check className="w-4 h-4 text-[#58A6FF]" />
-                                    <span className="text-[#58A6FF]">Copied Script</span>
-                                  </>
-                                ) : (
-                                  <>
-                                    <Copy className="w-4 h-4" />
-                                    <span>Copy Script</span>
-                                  </>
-                                )}
-                              </button>
-                            </div>
-                             <div className="text-sm sm:text-base text-[#F0F6FC] leading-relaxed font-medium whitespace-pre-wrap font-sans">
-                               {q.bestReplyScript}
-                             </div>
-                          </div>
-
-                          {/* 2. Key Terms Badges */}
-                          {q.keyPoints && q.keyPoints.length > 0 && (
-                            <div className="space-y-2">
-                              <span className="text-xs font-bold uppercase tracking-wider text-[#8B949E] block">
-                                Key Technical Concepts to Mention:
-                              </span>
-                              <div className="flex flex-wrap gap-2">
-                                {q.keyPoints.map((point, pIdx) => (
-                                  <span
-                                    key={pIdx}
-                                    className="px-3 py-1.5 rounded-lg border border-[#30363D] bg-[#161B22] text-xs font-medium text-[#C9D1D9]"
-                                  >
-                                    • {point}
-                                  </span>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-
-                          {/* 3. Full Complete Code Follow-Up Snippet */}
-                          {q.codeSnippet && (
-                            <div className="space-y-2.5">
-                              <div className="flex items-center justify-between text-xs text-[#8B949E] pt-1">
-                                <span className="font-extrabold uppercase tracking-wider text-[#58A6FF] flex items-center gap-1.5">
-                                  <Code className="w-4 h-4 text-[#58A6FF]" />
-                                  Full Code Follow-Up Implementation:
-                                </span>
-                                <button
-                                  onClick={() => handleCopyCode(q.id, q.codeSnippet!)}
-                                  className="px-2.5 py-1 rounded-lg border border-[#30363D] bg-[#161B22] hover:bg-[#21262D] text-xs text-[#C9D1D9] hover:text-white flex items-center gap-1.5 transition-colors"
-                                >
-                                  {copiedCodeId === q.id ? <Check className="w-3.5 h-3.5 text-[#58A6FF]" /> : <Copy className="w-3.5 h-3.5" />}
-                                  <span>{copiedCodeId === q.id ? 'Copied Code' : 'Copy Code'}</span>
-                                </button>
-                              </div>
-
-                              <div className="rounded-2xl border border-[#30363D] bg-[#080B10] p-4 sm:p-5 font-mono text-xs sm:text-sm text-[#E6EDF3] leading-relaxed overflow-x-auto shadow-inner">
-                                <pre className="whitespace-pre-wrap break-words">{q.codeSnippet}</pre>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* ======================================================== */}
-          {/* TAB 2: COMMON MISTAKES                                   */}
-          {/* ======================================================== */}
-          {activeTab === 'mistakes' && (
-            <div className="space-y-6 max-w-5xl mx-auto">
-              <div className="border-b border-[#30363D] pb-3 sm:pb-4">
-                <h3 className="text-base sm:text-xl font-extrabold text-[#F0F6FC]">
-                  ⚠️ Common Rookie Mistakes & Traps
-                </h3>
-                <p className="text-xs sm:text-sm text-[#8B949E] mt-1">
-                  Top coding bugs candidates make on this problem during technical interviews.
-                </p>
-              </div>
-
-              <div className="space-y-4 sm:space-y-5">
-                {data.mistakes.map((m) => (
-                  <div key={m.id} className="rounded-2xl border border-[#30363D] bg-[#161B22] p-4 sm:p-6 space-y-3.5 sm:space-y-4 shadow-md min-w-0">
-                    <div className="flex items-start gap-2.5 sm:gap-3">
-                      <AlertTriangle className="w-5 h-5 text-[#F85149] shrink-0 mt-0.5" />
-                      <div className="min-w-0">
-                        <h4 className="text-sm sm:text-lg font-extrabold text-[#F0F6FC] break-words">{m.title}</h4>
-                        <p className="text-xs sm:text-sm text-[#C9D1D9] leading-relaxed mt-1 break-words">
-                          {m.description}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                      <div className="rounded-xl border border-[#F85149]/30 bg-[#F85149]/5 p-3 sm:p-4 space-y-1.5 min-w-0 overflow-hidden">
-                        <span className="text-xs font-mono font-extrabold text-[#F85149] block">❌ Buggy Code</span>
-                        <code className="text-xs font-mono text-[#F0F6FC] block whitespace-pre-wrap break-words leading-relaxed">{m.badSnippet}</code>
-                      </div>
-
-                      <div className="rounded-xl border border-[#30363D] bg-[#0D1117] p-3 sm:p-4 space-y-1.5 min-w-0 overflow-hidden">
-                        <span className="text-xs font-mono font-extrabold text-[#8B949E] block">📥 Failing Test Input</span>
-                        <code className="text-xs font-mono text-[#58A6FF] block whitespace-pre-wrap break-words leading-relaxed">{m.failingInput}</code>
-                      </div>
-                    </div>
-
-                    <div className="rounded-xl border border-[#58A6FF]/30 bg-[#58A6FF]/5 p-3 sm:p-4 space-y-1.5 min-w-0">
-                      <span className="text-xs font-mono font-extrabold text-[#58A6FF] block">✅ How to Fix It</span>
-                      <p className="text-xs sm:text-sm text-[#F0F6FC] font-semibold leading-relaxed break-words">{m.howToFix}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
+    <div className="h-full flex flex-col overflow-hidden select-text font-sans">
+      {renderInnerContent()}
     </div>
   );
 };

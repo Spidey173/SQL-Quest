@@ -2,7 +2,7 @@
 // Covers SQLite (Sandbox), PostgreSQL (Production/Neon), MySQL (LeetCode Default), and Snowflake (Enterprise Cloud DWH)
 
 import { ChallengeDetail } from './types';
-import { getProblemSolution, ProblemSolution } from './problem-intelligence';
+import { getProblemSolution } from './problem-intelligence';
 
 export type SqlDialectId = 'sqlite' | 'postgres' | 'mysql' | 'snowflake';
 
@@ -1031,10 +1031,6 @@ export function deriveDialectComparison(
   const hasDivision = baseCode.includes('1.0 *') || baseCode.includes('1.0*') || upper.includes('CAST(') || upper.includes('::NUMERIC');
   const hasWindow = upper.includes('OVER (') || upper.includes('OVER(') || upper.includes('ROW_NUMBER()') || upper.includes('RANK()');
   const hasFullJoin = upper.includes('FULL JOIN') || upper.includes('FULL OUTER JOIN');
-  const hasRegex = upper.includes('REGEXP') || upper.includes('RLIKE') || upper.includes('~');
-  const hasLike = upper.includes('LIKE');
-  const hasCoalesce = upper.includes('COALESCE') || upper.includes('IFNULL') || upper.includes('NVL');
-  const hasLimit = upper.includes('LIMIT');
 
   let category: DialectComparison['category'] = 'ANSI Standard';
   let varianceBadge = '✨ 100% ANSI Portable Query';
@@ -1042,7 +1038,7 @@ export function deriveDialectComparison(
   let whyInterviewersAsk = 'Interviewers look for clean, standard ANSI SQL queries that avoid vendor lock-in and operate consistently across any database.';
   let hasDivergence = false;
 
-  let sqliteCode = baseCode;
+  const sqliteCode = baseCode;
   let postgresCode = baseCode;
   let mysqlCode = baseCode;
   let snowflakeCode = baseCode;

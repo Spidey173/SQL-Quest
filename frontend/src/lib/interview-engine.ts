@@ -5,12 +5,35 @@ import {
 } from './interview-data';
 
 export function getProblemStudyData(problem: ChallengeDetail): ProblemStudyData {
-  const key = problem.level_number || problem.id;
-  if (ALL_50_STUDY_DATA[key]) {
-    return ALL_50_STUDY_DATA[key];
+  const candidates: (string | number)[] = [
+    problem.id,
+    problem.level_number || '',
+    String(problem.id),
+    String(problem.level_number || ''),
+  ];
+
+  if (problem.code_id) {
+    candidates.push(problem.code_id);
+    const m = problem.code_id.match(/^(Basics|SQL|ASQL|Pro)-(\d+)$/i);
+    if (m) {
+      const prefix = m[1].toUpperCase();
+      const n = parseInt(m[2], 10);
+      if (prefix === 'BASICS') {
+        candidates.push(n, String(n));
+      } else if (prefix === 'SQL') {
+        candidates.push(35 + n, String(35 + n));
+      } else if (prefix === 'ASQL') {
+        candidates.push(70 + n, String(70 + n));
+      } else if (prefix === 'PRO') {
+        candidates.push(80 + n, String(80 + n));
+      }
+    }
   }
-  if (ALL_50_STUDY_DATA[problem.id]) {
-    return ALL_50_STUDY_DATA[problem.id];
+
+  for (const cand of candidates) {
+    if (cand && (ALL_50_STUDY_DATA as Record<string, any>)[cand]) {
+      return (ALL_50_STUDY_DATA as Record<string, any>)[cand];
+    }
   }
 
   // Fallback for custom challenges
