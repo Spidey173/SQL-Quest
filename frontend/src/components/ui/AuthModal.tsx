@@ -34,9 +34,12 @@ export function AuthModal({ isOpen, onClose, initialTab = 'signin' }: AuthModalP
 
   useEffect(() => {
     if (isOpen) {
-      setTab(initialTab);
-      setError(null);
-      setSuccessMsg(null);
+      const timer = setTimeout(() => {
+        setTab(initialTab);
+        setError(null);
+        setSuccessMsg(null);
+      }, 0);
+      return () => clearTimeout(timer);
     }
   }, [isOpen, initialTab]);
 

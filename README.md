@@ -115,4 +115,4 @@ Study/
 - **Backend**: Python 3.14, FastAPI, SQLAlchemy 2.0 (Async), Pydantic v2
 - **Database**: Neon Serverless PostgreSQL (Production) / SQLite 3.45 (Local & Execution Sandbox)
 - **Deployment**: Vercel (Frontend & Python Serverless Functions)
-- **Testing**: Pytest (15 automated tests passing) & Next.js Turbopack verification
+- **Testing**: Pytest (14 automated tests passing) & Next.js Turbopack verification

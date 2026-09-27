@@ -1,7 +1,6 @@
 import {
   ChapterGroup, ChallengeDetail, CodeRunResponse,
-  CodeSubmitResponse, LeaderboardEntry,
-  Achievement, ProfileResponse, User, SubmissionLogEntry,
+  CodeSubmitResponse, ProfileResponse, User, SubmissionLogEntry,
   SchemaSetupResponse, SchemaTableInfo
 } from './types';
 

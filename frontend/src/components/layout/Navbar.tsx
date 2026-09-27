@@ -11,7 +11,7 @@ import { CommandPalette } from '@/components/ui/CommandPalette';
 import { AuthModal } from '@/components/ui/AuthModal';
 import {
   Database, BookOpen, BarChart3, LayoutDashboard,
-  Search, LogOut, CheckCircle2, Menu, X
+  Search, LogOut, Menu, X
 } from 'lucide-react';
 
 export default function Navbar() {
@@ -26,6 +26,7 @@ export default function Navbar() {
 
   useEffect(() => {
     async function loadSolved(forceRefresh = false) {
+      solvedSetRef.current = new Set<number>();
       try {
         const [localSolved, chaps] = await Promise.all([
           persistence.getSolvedIds().catch(() => [] as any[]),

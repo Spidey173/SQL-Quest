@@ -2,7 +2,7 @@
 set -e
 
 echo "===================================="
-echo "Starting SQL Quest (250 SQL Masterclass)"
+echo "Starting SQL Quest (100 SQL Masterclass)"
 echo "===================================="
 
 # 1. Skip automatic seeding (seed disabled until all problems are completed)

@@ -55,7 +55,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
-    initAuth();
+    const timer = setTimeout(() => {
+      initAuth();
+    }, 0);
+    return () => clearTimeout(timer);
   }, []);
 
   const login = async (username: string, pass: string) => {

@@ -197,6 +197,34 @@ class SoundFX {
     } catch {}
   }
 
+  playClick() {
+    if (this.isMuted) return;
+    const ctx = this.getContext();
+    if (!ctx) return;
+    try {
+      const now = ctx.currentTime;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(600, now);
+      osc.frequency.exponentialRampToValueAtTime(800, now + 0.04);
+      gain.gain.setValueAtTime(0.1, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.05);
+    } catch {}
+  }
+
+  playSuccess() {
+    this.playSuccessChime();
+  }
+
+  playError() {
+    this.playFailureThud();
+  }
+
   toggleMute(): boolean {
     this.isMuted = !this.isMuted;
     return this.isMuted;
@@ -207,4 +235,5 @@ class SoundFX {
   }
 }
 
-export const soundFX = new SoundFX();
+export const sounds = new SoundFX();
+export const soundFX = sounds;

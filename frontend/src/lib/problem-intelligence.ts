@@ -1,5 +1,4 @@
 import { ChallengeDetail } from './types';
-import { ALL_50_SOLUTIONS, ProblemSolutionRecord } from './solutions-data';
 import { ALL_PROBLEM_SOLUTIONS, ProblemSolution } from './ranked-solutions-data';
 
 export type { ProblemSolution };
