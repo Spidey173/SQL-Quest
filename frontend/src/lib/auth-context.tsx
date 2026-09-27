@@ -83,10 +83,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const logout = () => {
+  const logout = async () => {
     localStorage.removeItem('pq_token');
     localStorage.removeItem('pq_local_user');
-    persistence.clearUserData();
+    await persistence.clearUserData();
     api.clearCache();
     setToken(null);
     setUser(null);

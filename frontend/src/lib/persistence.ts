@@ -275,6 +275,10 @@ class LocalPersistenceProvider implements PersistenceProvider {
       localStorage.removeItem('sqlquest_solved_ids');
       localStorage.removeItem('sqlquest_submissions_log');
       localStorage.removeItem('sqlquest_last_active_problem');
+      localStorage.removeItem('sqlquest_unlocked_solution_ids');
+      localStorage.removeItem('sqlquest_curriculum_fast_v1');
+      localStorage.removeItem('sql_quest_submissions');
+      localStorage.removeItem('sql_quest_solved_ids');
       const toRemove: string[] = [];
       for (let i = 0; i < localStorage.length; i++) {
         const k = localStorage.key(i);

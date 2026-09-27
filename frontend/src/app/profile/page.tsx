@@ -99,9 +99,9 @@ export default function TelemetryPage() {
           user ? api.getUserSubmissions().catch(() => [] as SubmissionLogEntry[]) : Promise.resolve([] as SubmissionLogEntry[]),
         ]);
         const flatLevels = (chaps || []).flatMap((c) => c.levels || []);
-        const backendSolved = flatLevels.filter((l) => l.passed).map((l) => l.id);
+        const backendSolved = user ? flatLevels.filter((l) => l.passed).map((l) => l.id) : [];
         const solvedCanonicalSet = new Set<number>();
-        const sourceSolved = Array.from(new Set([...backendSolved, ...localSolved]));
+        const sourceSolved = user ? Array.from(new Set([...backendSolved, ...localSolved])) : localSolved;
         for (const rawId of sourceSolved) {
           const canonical = getCanonicalProblemId(rawId, flatLevels);
           if (canonical >= 1 && canonical <= 100) {

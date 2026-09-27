@@ -33,8 +33,8 @@ export default function Navbar() {
           api.getChapters(forceRefresh).catch(() => [] as ChapterGroup[]),
         ]);
         const flatLevels = (chaps as ChapterGroup[]).flatMap((c: ChapterGroup) => c.levels || []);
-        const backendSolved = flatLevels.filter((l) => l.passed).map((l) => l.id);
-        const sourceList = Array.from(new Set([...backendSolved, ...localSolved]));
+        const backendSolved = user ? flatLevels.filter((l) => l.passed).map((l) => l.id) : [];
+        const sourceList = user ? Array.from(new Set([...backendSolved, ...localSolved])) : localSolved;
         for (const rawId of sourceList) {
           const canonical = getCanonicalProblemId(rawId, flatLevels);
           if (canonical >= 1 && canonical <= 100) {

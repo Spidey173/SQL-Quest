@@ -100,7 +100,7 @@ function CurriculumExplorerContent() {
         ]);
         setChapters((prev) => {
           const effective = (chaps && chaps.length > 0) ? chaps : prev;
-          if (chaps && chaps.length > 0) {
+          if (chaps && chaps.length > 0 && user) {
             try {
               localStorage.setItem('sqlquest_curriculum_fast_v1', JSON.stringify(chaps));
             } catch {
@@ -108,8 +108,8 @@ function CurriculumExplorerContent() {
             }
           }
           const flatLevels = effective.flatMap((c) => c.levels || []);
-          const backendSolved = flatLevels.filter((l) => l.passed).map((l) => l.id);
-          const merged = Array.from(new Set([...backendSolved, ...localSolved]));
+          const backendSolved = user ? flatLevels.filter((l) => l.passed).map((l) => l.id) : [];
+          const merged = user ? Array.from(new Set([...backendSolved, ...localSolved])) : localSolved;
           setSolvedIds(merged);
           return effective;
         });

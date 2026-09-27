@@ -75,8 +75,9 @@ export default function DashboardPage() {
   // Instant hydration from local storage on mount (0ms render like localhost)
   useEffect(() => {
     try {
+      const token = localStorage.getItem('pq_token');
       const cached = localStorage.getItem('sqlquest_curriculum_fast_v1');
-      if (cached) {
+      if (cached && token) {
         const parsed = JSON.parse(cached);
         if (Array.isArray(parsed) && parsed.length > 0) {
           setChapters(parsed);
@@ -96,31 +97,45 @@ export default function DashboardPage() {
           persistence.getLastActiveProblemId().catch(() => 'Basics-001'),
           persistence.getSubmissions().catch(() => [] as SubmissionLogEntry[]),
         ]);
-        if (Array.isArray(chaps) && chaps.length > 0) {
-          try {
-            localStorage.setItem('sqlquest_curriculum_fast_v1', JSON.stringify(chaps));
-          } catch {
-            // ignore
-          }
-          setChapters(chaps);
-        }
-        const flatLevels = ((chaps && chaps.length > 0) ? chaps : chapters).flatMap((c) => c.levels || []);
-        const backendSolved = flatLevels.filter((l) => l.passed).map((l) => l.code_id || l.id);
+
+        const rawChaps = (Array.isArray(chaps) && chaps.length > 0) ? chaps : chapters;
+        const flatLevels = rawChaps.flatMap((c) => c.levels || []);
+        const backendSolved = user
+          ? flatLevels.filter((l) => l.passed).map((l) => l.code_id || l.id)
+          : [];
 
         let resolvedSolved: Array<number | string>;
         if (user) {
           resolvedSolved = Array.from(new Set([...backendSolved, ...localSolved]));
         } else {
-          // Only trust localStorage solved IDs that have a matching passed submission
+          // For guests (not logged in), only trust local guest submissions with a matching passed status
           const passedSubmissionIds = new Set(
             subs.filter((s) => s.passed).map((s) => String(s.problemId))
           );
-          const validLocalSolved = localSolved.filter((id) => passedSubmissionIds.has(String(id)));
-          resolvedSolved = Array.from(new Set([...backendSolved, ...validLocalSolved]));
+          resolvedSolved = localSolved.filter((id) => passedSubmissionIds.has(String(id)));
         }
-        
-        if (chaps && chaps.length > 0) {
-          setChapters(chaps);
+
+        const sanitizedChaps = (Array.isArray(chaps) && chaps.length > 0)
+          ? (user
+              ? chaps
+              : chaps.map((c) => ({
+                  ...c,
+                  levels: (c.levels || []).map((l) => ({
+                    ...l,
+                    passed: resolvedSolved.some((sid) => String(sid) === String(l.code_id) || String(sid) === String(l.id))
+                  }))
+                })))
+          : [];
+
+        if (sanitizedChaps.length > 0) {
+          if (user) {
+            try {
+              localStorage.setItem('sqlquest_curriculum_fast_v1', JSON.stringify(sanitizedChaps));
+            } catch {
+              // ignore
+            }
+          }
+          setChapters(sanitizedChaps);
         }
         setSolvedIds(resolvedSolved);
         setLastActiveId(lastId || 'Basics-001');
@@ -131,7 +146,9 @@ export default function DashboardPage() {
     }
     loadData();
 
-    const handleRefresh = () => loadData(true);
+    const handleRefresh = () => {
+      loadData(true);
+    };
     window.addEventListener('sqlquest_auth_logout', handleRefresh);
     window.addEventListener('sqlquest_auth_login', handleRefresh);
     window.addEventListener('sqlquest_problem_solved', handleRefresh);
@@ -152,14 +169,16 @@ export default function DashboardPage() {
       const codeId = getCanonicalCodeId(rawId, allProblems);
       if (codeId) set.add(codeId);
     }
-    // Also include backend-confirmed passed problems
-    for (const p of allProblems) {
-      if (p.passed && p.code_id) {
-        set.add(p.code_id);
+    // Also include backend-confirmed passed problems for logged-in user only
+    if (user) {
+      for (const p of allProblems) {
+        if (p.passed && p.code_id) {
+          set.add(p.code_id);
+        }
       }
     }
     return set;
-  }, [solvedIds, allProblems]);
+  }, [solvedIds, allProblems, user]);
 
   const solvedCount = canonicalSolvedSet.size;
   const realStreak = useMemo(() => calculateRealStreak(submissions), [submissions]);
