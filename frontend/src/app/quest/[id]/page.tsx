@@ -21,7 +21,8 @@ import {
   Play, RotateCcw, ArrowLeft, ArrowRight, Clock, BookOpen,
   Check, X, Terminal, ChevronDown, ChevronUp, Copy, Trash2,
   CheckSquare, RefreshCw, Lock, Unlock,
-  Briefcase, Zap, Sparkles, Code, Database, FileCode, AlertCircle, Table
+  Briefcase, Zap, Sparkles, Code, Database, FileCode, AlertCircle, Table,
+  PanelLeftClose, PanelLeftOpen
 } from 'lucide-react';
 import { SchemaViewer } from '@/components/ui/SchemaViewer';
 import { SqlResultGrid } from '@/components/ui/SqlResultGrid';
@@ -81,6 +82,7 @@ export default function WorkspacePage({ params }: { params: Promise<{ id: string
   // Layout & Tabs
   const [consoleCollapsed, setConsoleCollapsed] = useState(false);
   const [dockHeight, setDockHeight] = useState<'normal' | 'expanded'>('normal');
+  const [isSpecCollapsed, setIsSpecCollapsed] = useState(false);
   // Left Panel Tab: Problem Spec, Database Schema, Solution Vault, Interview Q&A
   const [activeTab, setActiveTab] = useState<'spec' | 'schema' | 'vault' | 'interview'>('spec');
   const [activeConsoleTab, setActiveConsoleTab] = useState<'terminal' | 'tests'>('terminal');
@@ -971,7 +973,19 @@ export default function WorkspacePage({ params }: { params: Promise<{ id: string
       onToggleConsole: () => setConsoleCollapsed((p) => !p),
       onOpenCommandPalette: () => setCommandPaletteOpen(true),
     });
-    return unregister;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && (e.key === 'b' || e.key === 'B')) {
+        e.preventDefault();
+        setIsSpecCollapsed((prev) => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      unregister();
+      window.removeEventListener('keydown', handleKeyDown);
+    };
   }, [activeEditorTab, handleRunSetup, handleRunCode, handleSubmitCode]);
 
   const currentIndex = allProblems.findIndex(
@@ -993,12 +1007,12 @@ export default function WorkspacePage({ params }: { params: Promise<{ id: string
   const isCurrentProblemSolved = problem ? (isProblemSolved(problem, solvedIds, allProblems) || Boolean(problem.passed)) : false;
 
   return (
-    <div className="h-[calc(100vh-56px)] flex flex-col bg-[#070A0F] text-[#E6EDF3] overflow-hidden select-none">
+    <div className="h-[calc(100vh-56px)] flex flex-col bg-[#090909] text-[#E6EDF3] overflow-hidden select-none">
 
       {/* 1. Precision Mission Sub-Header */}
       <header className="h-12 border-b border-[#242424] bg-[#121212] px-3 md:px-4 flex items-center justify-between gap-2 md:gap-3 shrink-0 z-20">
         {/* Left: Curriculum Back Link, Prev/Next Stepper, Challenge Info */}
-        <div className="flex items-center gap-2 md:gap-3 min-w-0 flex-1 md:flex-initial">
+        <div className="flex items-center gap-1.5 sm:gap-2.5 min-w-0 flex-1 md:flex-initial">
           <Link
             href="/quest"
             className="p-1.5 rounded-[4px] text-[#888888] hover:text-[#F5F5F5] hover:bg-[#1A1A1A] transition-colors shrink-0"
@@ -1008,7 +1022,7 @@ export default function WorkspacePage({ params }: { params: Promise<{ id: string
           </Link>
 
           {/* Quick Challenge Stepper */}
-          <div className="flex items-center gap-1.5 border border-[#262626] rounded-[4px] bg-[#0E0E0E] px-2 py-0.5 text-xs font-mono shrink-0">
+          <div className="flex items-center gap-1 border border-[#262626] rounded-[4px] bg-[#0E0E0E] px-1.5 sm:px-2 py-0.5 text-xs font-mono shrink-0">
             <button
               onClick={() => {
                 if (prevProblem) router.push(`/quest/${prevProblem.code_id || prevProblem.id}`);
@@ -1034,67 +1048,78 @@ export default function WorkspacePage({ params }: { params: Promise<{ id: string
             </button>
           </div>
 
-          <div className="flex items-center gap-2 min-w-0 truncate">
-            <span className="text-sm md:text-base font-bold text-[#F5F5F5] truncate font-sans">
+          <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 truncate">
+            <span className="text-xs sm:text-sm md:text-base font-bold text-[#F5F5F5] truncate font-sans max-w-[150px] sm:max-w-[220px] md:max-w-[260px] lg:max-w-md">
               {problem?.title || 'Loading challenge...'}
             </span>
             {problem && (
-              <span className="hidden sm:inline-flex">
+              <span className="hidden lg:inline-flex">
                 <DifficultyBadge difficulty={problem.difficulty} size="sm" />
               </span>
             )}
             {isCurrentProblemSolved && (
-              <span className="flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded-[3px] bg-[#0E1A12] text-[#48BB78] border border-[#2E4A35] font-semibold shrink-0">
+              <span className="flex items-center gap-1 text-[10px] font-mono px-1.5 sm:px-2 py-0.5 rounded-[3px] bg-[#0E1A12] text-[#48BB78] border border-[#2E4A35] font-semibold shrink-0">
                 <Check className="h-3 w-3" /> <span className="hidden sm:inline">SOLVED</span>
               </span>
             )}
           </div>
         </div>
 
-        {/* Center: Live Mission Timer (Desktop) */}
-        <button
-          type="button"
-          onClick={() => {
-            if (isCurrentProblemSolved && !isPracticingAgain) return;
-            if (isTimerRunning) {
-              stopTimer();
-            } else {
-              startTimer();
+        {/* Center: Spec Toggle + Live Mission Timer */}
+        <div className="hidden md:flex items-center gap-2 shrink-0">
+          {/* Toggle Spec Panel (Desktop/Tablet) */}
+          <button
+            type="button"
+            onClick={() => setIsSpecCollapsed((prev) => !prev)}
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-[4px] border border-[#262626] bg-[#0E0E0E] text-[#888888] hover:text-[#F5F5F5] hover:border-[#383838] transition-all text-xs font-mono cursor-pointer"
+            title={isSpecCollapsed ? 'Expand Problem Spec (Cmd+B)' : 'Collapse Problem Spec to focus on editor (Cmd+B)'}
+          >
+            {isSpecCollapsed ? (
+              <PanelLeftOpen className="h-3.5 w-3.5 text-[#FF6B00]" />
+            ) : (
+              <PanelLeftClose className="h-3.5 w-3.5" />
+            )}
+            <span className="hidden xl:inline text-[11px]">
+              {isSpecCollapsed ? 'EXPAND SPEC' : 'FOCUS CODE'}
+            </span>
+          </button>
+
+          {/* Live Mission Timer (Desktop) */}
+          <button
+            type="button"
+            onClick={() => {
+              if (isCurrentProblemSolved && !isPracticingAgain) return;
+              if (isTimerRunning) {
+                stopTimer();
+              } else {
+                startTimer();
+              }
+            }}
+            className={`hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-[4px] border text-xs font-mono transition-all duration-[120ms] ${
+              isCurrentProblemSolved && !isPracticingAgain
+                ? 'border-[#2E4A35] bg-[#0E1A12] text-[#48BB78]'
+                : !isTimerRunning
+                ? 'border-[#4A3018] bg-[#1A120B] text-[#FF9B42] hover:bg-[#24170D] cursor-pointer'
+                : 'border-[#262626] bg-[#0E0E0E] text-[#888888] hover:border-[#383838] cursor-pointer'
+            }`}
+            title={
+              isCurrentProblemSolved && !isPracticingAgain
+                ? 'Problem Completed'
+                : isTimerRunning
+                ? 'Timer running — Click to pause'
+                : 'Timer paused — Click to resume'
             }
-          }}
-          className={`hidden md:flex items-center gap-2 px-3 py-1 rounded-[4px] border text-xs font-mono transition-all duration-[120ms] ${
-            isCurrentProblemSolved && !isPracticingAgain
-              ? 'border-[#2E4A35] bg-[#0E1A12] text-[#48BB78]'
-              : !isTimerRunning
-              ? 'border-[#4A3018] bg-[#1A120B] text-[#FF9B42] hover:bg-[#24170D] cursor-pointer'
-              : 'border-[#262626] bg-[#0E0E0E] text-[#888888] hover:border-[#383838] cursor-pointer'
-          }`}
-          title={
-            isCurrentProblemSolved && !isPracticingAgain
-              ? 'Problem Completed'
-              : isTimerRunning
-              ? 'Timer running — Click to pause'
-              : 'Timer paused — Click to resume'
-          }
-        >
-          <Clock className={`h-3.5 w-3.5 ${
-            isCurrentProblemSolved && !isPracticingAgain
-              ? 'text-[#38A169]'
-              : !isTimerRunning
-              ? 'text-[#FF9B42]'
-              : 'text-[#888888]'
-          }`} />
-          <span>{formatTimer(elapsedSeconds)}</span>
-          {isCurrentProblemSolved && !isPracticingAgain ? (
-            <span className="text-[10px] font-mono font-bold text-[#48BB78] uppercase ml-0.5">
-              DONE
-            </span>
-          ) : !isTimerRunning ? (
-            <span className="text-[10px] font-mono font-bold text-[#FF9B42] uppercase ml-0.5">
-              PAUSED
-            </span>
-          ) : null}
-        </button>
+          >
+            <Clock className={`h-3.5 w-3.5 ${
+              isCurrentProblemSolved && !isPracticingAgain
+                ? 'text-[#38A169]'
+                : !isTimerRunning
+                ? 'text-[#FF9B42]'
+                : 'text-[#888888]'
+            }`} />
+            <span>{formatTimer(elapsedSeconds)}</span>
+          </button>
+        </div>
 
         {/* Right: Code Actions (schema mode vs solution mode) — Desktop */}
         <div className="hidden md:flex items-center gap-2">
@@ -1214,125 +1239,178 @@ export default function WorkspacePage({ params }: { params: Promise<{ id: string
       {/* 2. Desktop Workspace Layout (MD+ Only): 2 Focused Panes (Mentor Cockpit + Editor & Terminal) */}
       <div className="hidden md:flex flex-1 overflow-hidden relative min-h-0">
 
-        {/* Left Cockpit Panel (480px / 540px) — Problem Spec / Schema / Solution Vault */}
-        <section className="w-[480px] lg:w-[540px] border-r border-[#242424] bg-[#0E0E0E] flex flex-col shrink-0 overflow-hidden">
-          {/* Cockpit Navigation Tabs */}
-          <div className="h-10 border-b border-[#242424] bg-[#121212] px-2 flex items-center gap-1 shrink-0 overflow-x-auto scrollbar-none font-mono text-xs">
-            {/* Tab 1: Problem Spec */}
+        {/* Left Cockpit Panel (Fluid / Collapsible) — Problem Spec / Schema / Solution Vault */}
+        {isSpecCollapsed ? (
+          <aside className="w-12 border-r border-[#242424] bg-[#0E0E0E] flex flex-col items-center py-2.5 shrink-0 overflow-hidden gap-3 transition-all duration-150">
             <button
-              onClick={() => setActiveTab('spec')}
-              className={`px-2.5 py-1 rounded-[3px] font-semibold transition-all duration-[120ms] flex items-center gap-1.5 shrink-0 ${
-                activeTab === 'spec'
-                  ? 'bg-[#1C1C1C] text-[#F5F5F5] border border-[#333333] shadow-sm'
-                  : 'text-[#888888] hover:text-[#D4D4D4] hover:bg-[#161616]'
-              }`}
+              onClick={() => setIsSpecCollapsed(false)}
+              className="p-2 rounded-[4px] text-[#888888] hover:text-[#F5F5F5] hover:bg-[#1A1A1A] transition-colors cursor-pointer"
+              title="Expand Spec Panel (Cmd+B)"
             >
-              <BookOpen className={`w-3.5 h-3.5 ${activeTab === 'spec' ? 'text-[#FF6B00]' : 'text-[#666666]'}`} />
-              <span>SPEC</span>
+              <PanelLeftOpen className="h-4 w-4 text-[#FF6B00]" />
             </button>
-
-            {/* Tab 2: Database Schema & Tables */}
+            <div className="h-[1px] w-6 bg-[#222222]" />
             <button
-              onClick={() => setActiveTab('schema')}
-              className={`px-2.5 py-1 rounded-[3px] font-semibold transition-all duration-[120ms] flex items-center gap-1.5 shrink-0 ${
-                activeTab === 'schema'
-                  ? 'bg-[#1C1C1C] text-[#F5F5F5] border border-[#333333] shadow-sm'
-                  : 'text-[#888888] hover:text-[#D4D4D4] hover:bg-[#161616]'
-              }`}
+              onClick={() => { setActiveTab('spec'); setIsSpecCollapsed(false); }}
+              className={`p-2 rounded-[4px] transition-colors cursor-pointer ${activeTab === 'spec' ? 'text-[#FF6B00] bg-[#1A120B]' : 'text-[#777777] hover:text-[#CCCCCC]'}`}
+              title="Problem Spec"
             >
-              <Database className={`w-3.5 h-3.5 ${activeTab === 'schema' ? 'text-[#FF6B00]' : 'text-[#666666]'}`} />
-              <span>SCHEMA</span>
+              <BookOpen className="h-4 w-4" />
             </button>
-
-            {/* Tab 3: Solution */}
             <button
-              onClick={() => setActiveTab('vault')}
-              className={`px-2.5 py-1 rounded-[3px] font-semibold transition-all duration-[120ms] flex items-center gap-1.5 shrink-0 ${
-                activeTab === 'vault'
-                  ? 'bg-[#1C1C1C] text-[#F5F5F5] border border-[#333333] shadow-sm'
-                  : 'text-[#888888] hover:text-[#D4D4D4] hover:bg-[#161616]'
-              }`}
+              onClick={() => { setActiveTab('schema'); setIsSpecCollapsed(false); }}
+              className={`p-2 rounded-[4px] transition-colors cursor-pointer ${activeTab === 'schema' ? 'text-[#FF6B00] bg-[#1A120B]' : 'text-[#777777] hover:text-[#CCCCCC]'}`}
+              title="Database Schema"
             >
-              {isSolutionUnlocked ? (
-                <Unlock className="w-3.5 h-3.5 text-[#38A169]" />
-              ) : (
-                <Lock className="w-3.5 h-3.5 text-[#888888]" />
+              <Database className="h-4 w-4" />
+            </button>
+            <button
+              onClick={() => { setActiveTab('vault'); setIsSpecCollapsed(false); }}
+              className={`p-2 rounded-[4px] transition-colors cursor-pointer ${activeTab === 'vault' ? 'text-[#FF6B00] bg-[#1A120B]' : 'text-[#777777] hover:text-[#CCCCCC]'}`}
+              title="Solutions Vault"
+            >
+              {isSolutionUnlocked ? <Unlock className="h-4 w-4 text-[#38A169]" /> : <Lock className="h-4 w-4" />}
+            </button>
+            <button
+              onClick={() => { setActiveTab('interview'); setIsSpecCollapsed(false); }}
+              className={`p-2 rounded-[4px] transition-colors cursor-pointer ${activeTab === 'interview' ? 'text-[#FFC857] bg-[#1A180C]' : 'text-[#777777] hover:text-[#CCCCCC]'}`}
+              title="Interview Q&A"
+            >
+              {isSolutionUnlocked ? <Briefcase className="h-4 w-4 text-[#FFC857]" /> : <Lock className="h-4 w-4" />}
+            </button>
+          </aside>
+        ) : (
+          <section className="w-full md:w-[380px] lg:w-[440px] xl:w-[480px] 2xl:w-[520px] max-w-[50%] border-r border-[#242424] bg-[#0E0E0E] flex flex-col shrink-0 overflow-hidden transition-all duration-150">
+            {/* Cockpit Navigation Tabs */}
+            <div className="h-10 border-b border-[#242424] bg-[#121212] px-2 flex items-center justify-between shrink-0 overflow-x-auto scrollbar-none font-mono text-xs">
+              <div className="flex items-center gap-1">
+                {/* Tab 1: Problem Spec */}
+                <button
+                  onClick={() => setActiveTab('spec')}
+                  className={`px-2.5 py-1 rounded-[3px] font-semibold transition-all duration-[120ms] flex items-center gap-1.5 shrink-0 ${
+                    activeTab === 'spec'
+                      ? 'bg-[#1C1C1C] text-[#F5F5F5] border border-[#333333] shadow-sm'
+                      : 'text-[#888888] hover:text-[#D4D4D4] hover:bg-[#161616]'
+                  }`}
+                >
+                  <BookOpen className={`w-3.5 h-3.5 ${activeTab === 'spec' ? 'text-[#FF6B00]' : 'text-[#666666]'}`} />
+                  <span>SPEC</span>
+                </button>
+
+                {/* Tab 2: Database Schema & Tables */}
+                <button
+                  onClick={() => setActiveTab('schema')}
+                  className={`px-2.5 py-1 rounded-[3px] font-semibold transition-all duration-[120ms] flex items-center gap-1.5 shrink-0 ${
+                    activeTab === 'schema'
+                      ? 'bg-[#1C1C1C] text-[#F5F5F5] border border-[#333333] shadow-sm'
+                      : 'text-[#888888] hover:text-[#D4D4D4] hover:bg-[#161616]'
+                  }`}
+                >
+                  <Database className={`w-3.5 h-3.5 ${activeTab === 'schema' ? 'text-[#FF6B00]' : 'text-[#666666]'}`} />
+                  <span>SCHEMA</span>
+                </button>
+
+                {/* Tab 3: Solution */}
+                <button
+                  onClick={() => setActiveTab('vault')}
+                  className={`px-2.5 py-1 rounded-[3px] font-semibold transition-all duration-[120ms] flex items-center gap-1.5 shrink-0 ${
+                    activeTab === 'vault'
+                      ? 'bg-[#1C1C1C] text-[#F5F5F5] border border-[#333333] shadow-sm'
+                      : 'text-[#888888] hover:text-[#D4D4D4] hover:bg-[#161616]'
+                  }`}
+                >
+                  {isSolutionUnlocked ? (
+                    <Unlock className="w-3.5 h-3.5 text-[#38A169]" />
+                  ) : (
+                    <Lock className="w-3.5 h-3.5 text-[#888888]" />
+                  )}
+                  <span>SOLUTIONS</span>
+                </button>
+
+                {/* Tab 4: Interview Q&A */}
+                <button
+                  onClick={() => setActiveTab('interview')}
+                  className={`px-2.5 py-1 rounded-[3px] font-semibold transition-all duration-[120ms] flex items-center gap-1.5 shrink-0 ${
+                    activeTab === 'interview'
+                      ? 'bg-[#1C1C1C] text-[#F5F5F5] border border-[#333333] shadow-sm'
+                      : 'text-[#888888] hover:text-[#D4D4D4] hover:bg-[#161616]'
+                  }`}
+                >
+                  {isSolutionUnlocked ? (
+                    <Briefcase className="w-3.5 h-3.5 text-[#FFC857]" />
+                  ) : (
+                    <Lock className="w-3.5 h-3.5 text-[#888888]" />
+                  )}
+                  <span className="hidden sm:inline">INTERVIEW</span>
+                </button>
+              </div>
+
+              {/* Quick collapse icon inside tab bar */}
+              <button
+                type="button"
+                onClick={() => setIsSpecCollapsed(true)}
+                className="p-1 rounded text-[#666666] hover:text-[#CCCCCC] hover:bg-[#1C1C1C] transition-colors shrink-0 cursor-pointer"
+                title="Collapse to focus on code editor (Cmd+B)"
+              >
+                <PanelLeftClose className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            {/* Cockpit Content Panes */}
+            <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
+
+              {/* VIEW 1: PROBLEM SPEC */}
+              {activeTab === 'spec' && (
+                <ProblemOneSpecView
+                  problem={problem}
+                  onInsertCode={(suggestedCode) => {
+                    setCode(suggestedCode);
+                    persistence.saveDraft(currentCodeId, suggestedCode, 'solution');
+                  }}
+                />
               )}
-              <span>SOLUTIONS</span>
-            </button>
 
-            {/* Tab 4: Interview Q&A */}
-            <button
-              onClick={() => setActiveTab('interview')}
-              className={`px-2.5 py-1 rounded-[3px] font-semibold transition-all duration-[120ms] flex items-center gap-1.5 shrink-0 ${
-                activeTab === 'interview'
-                  ? 'bg-[#1C1C1C] text-[#F5F5F5] border border-[#333333] shadow-sm'
-                  : 'text-[#888888] hover:text-[#D4D4D4] hover:bg-[#161616]'
-              }`}
-            >
-              {isSolutionUnlocked ? (
-                <Briefcase className="w-3.5 h-3.5 text-[#FFC857]" />
-              ) : (
-                <Lock className="w-3.5 h-3.5 text-[#888888]" />
+              {/* VIEW: SCHEMA & TABLES */}
+              {activeTab === 'schema' && (
+                <SchemaViewer
+                  problemTitle={problem?.title}
+                  dynamicTables={schemaTables}
+                  setupSql={schemaCode || problem?.setup_sql}
+                  onRunSetup={handleRunSetup}
+                  onOpenSchemaEditor={() => setActiveEditorTab('schema')}
+                />
               )}
-              <span>INTERVIEW</span>
-            </button>
-          </div>
 
-          {/* Cockpit Content Panes */}
-          <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
+              {/* VIEW 3: SOLUTION VAULT (LOCKED / UNLOCKED) */}
+              {activeTab === 'vault' && problem && (
+                <SolutionVault
+                  problem={problem}
+                  isSolved={Boolean(isCurrentProblemSolved)}
+                  unlocked={isSolutionUnlocked}
+                  hintsUsedCount={hintTier}
+                  onUnlock={() => {
+                    setIsSolutionUnlocked(true);
+                    persistence.markSolutionUnlocked(currentCodeId);
+                  }}
+                  onSubmitCode={handleSubmitCode}
+                  onLoadCodeToEditor={(solCode) => {
+                    setCode(solCode);
+                    persistence.saveDraft(currentCodeId, solCode);
+                  }}
+                />
+              )}
 
-            {/* VIEW 1: PROBLEM SPEC */}
-            {activeTab === 'spec' && (
-              <ProblemOneSpecView
-                problem={problem}
-                onInsertCode={(suggestedCode) => {
-                  setCode(suggestedCode);
-                  persistence.saveDraft(currentCodeId, suggestedCode, 'solution');
-                }}
-              />
-            )}
-
-            {/* VIEW: SCHEMA & TABLES */}
-            {activeTab === 'schema' && (
-              <SchemaViewer
-                problemTitle={problem?.title}
-                dynamicTables={schemaTables}
-                setupSql={schemaCode || problem?.setup_sql}
-                onRunSetup={handleRunSetup}
-                onOpenSchemaEditor={() => setActiveEditorTab('schema')}
-              />
-            )}
-
-            {/* VIEW 3: SOLUTION VAULT (LOCKED / UNLOCKED) */}
-            {activeTab === 'vault' && problem && (
-              <SolutionVault
-                problem={problem}
-                isSolved={Boolean(isCurrentProblemSolved)}
-                unlocked={isSolutionUnlocked}
-                hintsUsedCount={hintTier}
-                onUnlock={() => {
-                  setIsSolutionUnlocked(true);
-                  persistence.markSolutionUnlocked(currentCodeId);
-                }}
-                onSubmitCode={handleSubmitCode}
-                onLoadCodeToEditor={(solCode) => {
-                  setCode(solCode);
-                  persistence.saveDraft(currentCodeId, solCode);
-                }}
-              />
-            )}
-
-            {/* VIEW 4: INTERVIEW Q&A PREP */}
-            {activeTab === 'interview' && problem && (
-              <InterviewPanel
-                problem={problem}
-                isSolved={isCurrentProblemSolved || isSolutionUnlocked}
-                onClose={() => setActiveTab('spec')}
-              />
-            )}
-          </div>
-        </section>
+              {/* VIEW 4: INTERVIEW Q&A PREP */}
+              {activeTab === 'interview' && problem && (
+                <InterviewPanel
+                  problem={problem}
+                  isSolved={isCurrentProblemSolved || isSolutionUnlocked}
+                  onClose={() => setActiveTab('spec')}
+                />
+              )}
+            </div>
+          </section>
+        )}
 
         {/* Right Pane: Monaco Code Canvas + SQLite Terminal Console Dock */}
         <div className="flex-1 flex flex-col bg-[#090909] overflow-hidden">
@@ -1561,15 +1639,15 @@ export default function WorkspacePage({ params }: { params: Promise<{ id: string
       </div>
 
       {/* 3. Mobile Workspace Layout (< MD Only) */}
-      <div className="flex md:hidden flex-col flex-1 min-h-0 overflow-hidden relative bg-[#070A0F]">
+      <div className="flex md:hidden flex-col flex-1 min-h-0 overflow-hidden relative bg-[#090909]">
         {/* Mobile Segmented Mode Switcher */}
-        <div className="h-11 border-b border-[#21262D] bg-[#111622] px-2 py-1.5 flex items-center gap-1.5 shrink-0 select-none">
+        <div className="h-11 border-b border-[#242424] bg-[#121212] px-2 py-1.5 flex items-center gap-1.5 shrink-0 select-none font-mono">
           <button
             onClick={() => setMobileTab('spec')}
-            className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
+            className={`flex-1 py-1.5 px-2 rounded-[4px] text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
               mobileTab === 'spec'
-                ? 'bg-[#21262D] text-[#58A6FF] border border-[#30363D] shadow-sm'
-                : 'text-[#8B949E] hover:text-[#E6EDF3]'
+                ? 'bg-[#1C1C1C] text-[#FF6B00] border border-[#333333] shadow-sm'
+                : 'text-[#888888] hover:text-[#D4D4D4]'
             }`}
           >
             <BookOpen className="w-3.5 h-3.5" />
@@ -1578,10 +1656,10 @@ export default function WorkspacePage({ params }: { params: Promise<{ id: string
 
           <button
             onClick={() => setMobileTab('code')}
-            className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
+            className={`flex-1 py-1.5 px-2 rounded-[4px] text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
               mobileTab === 'code'
-                ? 'bg-[#1F6FEB]/20 text-[#58A6FF] border border-[#1F6FEB]/40 shadow-sm'
-                : 'text-[#8B949E] hover:text-[#E6EDF3]'
+                ? 'bg-[#1C1C1C] text-[#FF6B00] border border-[#333333] shadow-sm'
+                : 'text-[#888888] hover:text-[#D4D4D4]'
             }`}
           >
             <Code className="w-3.5 h-3.5" />
@@ -1590,10 +1668,10 @@ export default function WorkspacePage({ params }: { params: Promise<{ id: string
 
           <button
             onClick={() => setMobileTab('interview')}
-            className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
+            className={`flex-1 py-1.5 px-2 rounded-[4px] text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
               mobileTab === 'interview'
-                ? 'bg-purple-500/20 text-purple-400 border border-purple-500/40 shadow-sm'
-                : 'text-[#8B949E] hover:text-[#E6EDF3]'
+                ? 'bg-[#1C1C1C] text-[#FFC857] border border-[#333333] shadow-sm'
+                : 'text-[#888888] hover:text-[#D4D4D4]'
             }`}
           >
             <Briefcase className="w-3.5 h-3.5" />
@@ -1603,7 +1681,7 @@ export default function WorkspacePage({ params }: { params: Promise<{ id: string
 
         {/* Mobile Tab 1: Problem Spec */}
         {mobileTab === 'spec' && (
-          <div className="flex-1 flex flex-col min-h-0 bg-[#070A0F] overflow-hidden">
+          <div className="flex-1 flex flex-col min-h-0 bg-[#090909] overflow-hidden">
             <div className="flex-1 overflow-y-auto">
               <ProblemOneSpecView
                 problem={problem}
@@ -1616,13 +1694,13 @@ export default function WorkspacePage({ params }: { params: Promise<{ id: string
             </div>
 
             {/* Bottom Action: Jump to Code */}
-            <div className="border-t border-[#21262D] bg-[#0E131C] p-3 shrink-0">
+            <div className="border-t border-[#242424] bg-[#121212] p-3 shrink-0">
               <button
                 onClick={() => setMobileTab('code')}
-                className="w-full py-2.5 rounded-xl bg-gradient-to-r from-[#1F6FEB] to-[#38BDF8] text-white text-xs font-bold flex items-center justify-center gap-2 shadow-md shadow-sky-950/40 cursor-pointer"
+                className="w-full py-2.5 rounded-[4px] bg-[#FF6B00] hover:bg-[#E05F00] text-black font-mono text-xs font-bold flex items-center justify-center gap-2 shadow-md cursor-pointer transition-all active:scale-[0.98]"
               >
-                <span>Open Code Editor</span>
-                <ArrowLeft className="h-4 w-4 rotate-180" />
+                <span>OPEN SQL EDITOR</span>
+                <ArrowRight className="h-4 w-4" />
               </button>
             </div>
           </div>
@@ -1630,26 +1708,26 @@ export default function WorkspacePage({ params }: { params: Promise<{ id: string
 
         {/* Mobile Tab 2: Code Editor (Distraction-free, No Terminal cluttering screen) */}
         {mobileTab === 'code' && (
-          <div className="flex-1 flex flex-col min-h-0 bg-[#080B12] overflow-hidden relative">
+          <div className="flex-1 flex flex-col min-h-0 bg-[#090909] overflow-hidden relative">
             {/* Mobile Editor Sub-Bar with File Switcher */}
-            <div className="h-9 px-2 border-b border-[#21262D] bg-[#0E131C] flex items-center justify-between shrink-0">
+            <div className="h-9 px-2 border-b border-[#242424] bg-[#121212] flex items-center justify-between shrink-0 font-mono">
               <div className="flex items-center gap-1">
                 <button
                   onClick={() => setActiveEditorTab('schema')}
-                  className={`px-2 py-0.5 rounded text-[11px] font-mono font-semibold transition-all ${
+                  className={`px-2.5 py-0.5 rounded-[3px] text-[11px] font-mono font-semibold transition-all ${
                     activeEditorTab === 'schema'
-                      ? 'bg-[#1E2E22] text-[#48BB78] border border-[#2E4A35]'
-                      : 'text-[#8B949E]'
+                      ? 'bg-[#1C1C1C] text-[#38A169] border border-[#2E4A35]'
+                      : 'text-[#888888]'
                   }`}
                 >
                   schema.sql
                 </button>
                 <button
                   onClick={() => setActiveEditorTab('solution')}
-                  className={`px-2 py-0.5 rounded text-[11px] font-mono font-semibold transition-all ${
+                  className={`px-2.5 py-0.5 rounded-[3px] text-[11px] font-mono font-semibold transition-all ${
                     activeEditorTab === 'solution'
-                      ? 'bg-[#2E1E12] text-[#FF9B42] border border-[#4E2E18]'
-                      : 'text-[#8B949E]'
+                      ? 'bg-[#1C1C1C] text-[#FF6B00] border border-[#3E2314]'
+                      : 'text-[#888888]'
                   }`}
                 >
                   solution.sql
@@ -1664,18 +1742,18 @@ export default function WorkspacePage({ params }: { params: Promise<{ id: string
                     setCopiedCode(true);
                     setTimeout(() => setCopiedCode(false), 2000);
                   }}
-                  className="p-1 rounded text-[#8B949E] hover:text-white transition-colors cursor-pointer"
+                  className="p-1 rounded text-[#888888] hover:text-white transition-colors cursor-pointer"
                   title="Copy code"
                 >
-                  {copiedCode ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
+                  {copiedCode ? <Check className="h-3.5 w-3.5 text-[#38A169]" /> : <Copy className="h-3.5 w-3.5 text-[#888888]" />}
                 </button>
                 {runResponse?.test_results && runResponse.test_results.length > 0 && (
                   <button
                     onClick={() => setMobileDrawerOpen(true)}
-                    className={`flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono font-semibold cursor-pointer ${
+                    className={`flex items-center gap-1 px-2 py-0.5 rounded-[3px] text-[10px] font-mono font-semibold cursor-pointer ${
                       runResponse.test_results.every((t) => t.passed)
-                        ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                        : 'bg-red-500/20 text-red-400 border border-red-500/30'
+                        ? 'bg-[#0E1A12] text-[#38A169] border border-[#2E4A35]'
+                        : 'bg-[#1A0E0E] text-[#E53935] border border-[#3E1A1A]'
                     }`}
                   >
                     <span>
@@ -1687,8 +1765,8 @@ export default function WorkspacePage({ params }: { params: Promise<{ id: string
               </div>
             </div>
 
-            {/* Full-Height Mobile Monaco Editor (Distraction-Free) */}
-            <div className="flex-1 relative min-h-0 bg-[#080B12] pb-24">
+            {/* Full-Height Mobile Monaco Editor */}
+            <div className="flex-1 relative min-h-0 bg-[#090909] pb-24">
               <MonacoEditor
                 key={`mobile_${activeEditorTab}`}
                 height="100%"
@@ -1717,14 +1795,14 @@ export default function WorkspacePage({ params }: { params: Promise<{ id: string
               />
             </div>
 
-            {/* Floating Ultra-Premium Mobile Action Dock (Guaranteed 100% Visible & Pinned to Viewport) */}
-            <div className="fixed bottom-3 left-3 right-3 z-30 flex items-center justify-between gap-2.5 p-2 px-3 rounded-2xl bg-[#161B22]/95 backdrop-blur-xl border border-[#30363D] shadow-2xl shadow-black/90">
+            {/* Floating Mobile Action Dock */}
+            <div className="fixed bottom-3 left-3 right-3 z-30 flex items-center justify-between gap-2.5 p-2 px-3 rounded-[6px] bg-[#121212]/95 backdrop-blur-xl border border-[#262626] shadow-2xl">
               {activeEditorTab === 'schema' ? (
                 <>
                   <button
                     onClick={handleResetDatabase}
                     disabled={isResettingSchema || isSettingUpSchema}
-                    className="p-3 rounded-xl border border-[#30363D] bg-[#0D1117] text-[#8B949E] hover:text-white active:scale-95 transition-all cursor-pointer shrink-0 shadow-inner"
+                    className="p-2.5 rounded-[4px] border border-[#2E2E2E] bg-[#181818] text-[#888888] hover:text-white active:scale-95 transition-all cursor-pointer shrink-0"
                     title="Reset database sandbox"
                   >
                     {isResettingSchema ? (
@@ -1737,21 +1815,21 @@ export default function WorkspacePage({ params }: { params: Promise<{ id: string
                   <button
                     onClick={handleRunSetup}
                     disabled={isSettingUpSchema || isResettingSchema}
-                    className="flex-1 py-3 px-4 rounded-xl bg-gradient-to-r from-[#238636] via-[#2EA043] to-[#3FB950] active:scale-[0.98] text-white text-xs font-extrabold flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/30 transition-all disabled:opacity-50 cursor-pointer"
+                    className="flex-1 py-2.5 px-4 rounded-[4px] bg-[#38A169] hover:bg-[#2F855A] active:scale-[0.98] text-white text-xs font-mono font-bold flex items-center justify-center gap-2 shadow-lg transition-all disabled:opacity-50 cursor-pointer"
                   >
                     {isSettingUpSchema ? (
                       <RefreshCw className="h-4 w-4 animate-spin text-white" />
                     ) : (
                       <Play className="h-4 w-4 fill-current text-white" />
                     )}
-                    <span className="tracking-wide uppercase text-[11px]">Run Setup (DDL)</span>
+                    <span className="tracking-wide uppercase text-[11px]">Run Setup</span>
                   </button>
                 </>
               ) : (
                 <>
                   <button
                     onClick={handleResetCode}
-                    className="p-3 rounded-xl border border-[#30363D] bg-[#0D1117] text-[#8B949E] hover:text-white active:scale-95 transition-all cursor-pointer shrink-0 shadow-inner"
+                    className="p-2.5 rounded-[4px] border border-[#2E2E2E] bg-[#181818] text-[#888888] hover:text-white active:scale-95 transition-all cursor-pointer shrink-0"
                     title="Reset code"
                   >
                     <RotateCcw className="h-4 w-4" />
@@ -1762,7 +1840,7 @@ export default function WorkspacePage({ params }: { params: Promise<{ id: string
                       <button
                         onClick={handleSolveAgain}
                         disabled={isRunning || isSubmitting}
-                        className="flex-1 py-3 px-3.5 rounded-xl border border-[#30363D] bg-[#21262D] hover:bg-[#30363D] active:scale-[0.98] text-xs font-bold text-[#E6EDF3] flex items-center justify-center gap-2 transition-all disabled:opacity-50 cursor-pointer shadow-sm"
+                        className="flex-1 py-2.5 px-3 rounded-[4px] border border-[#333333] bg-[#1C1C1C] hover:bg-[#242424] active:scale-[0.98] text-xs font-mono font-bold text-[#F5F5F5] flex items-center justify-center gap-2 transition-all disabled:opacity-50 cursor-pointer shadow-sm"
                       >
                         {isRunning ? (
                           <RefreshCw className="h-4 w-4 animate-spin text-[#FF6B00]" />
@@ -1780,7 +1858,7 @@ export default function WorkspacePage({ params }: { params: Promise<{ id: string
                             router.push('/quest');
                           }
                         }}
-                        className="flex-[1.6] py-3 px-4 rounded-xl bg-gradient-to-r from-[#238636] via-[#2EA043] to-[#3FB950] active:scale-[0.98] text-white text-xs font-extrabold flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/30 transition-all cursor-pointer"
+                        className="flex-[1.4] py-2.5 px-3.5 rounded-[4px] bg-[#38A169] hover:bg-[#2F855A] active:scale-[0.98] text-white text-xs font-mono font-bold flex items-center justify-center gap-1.5 shadow-lg transition-all cursor-pointer"
                       >
                         <span>Next Challenge</span>
                         <ArrowRight className="h-4 w-4 stroke-[2.5]" />
@@ -1789,14 +1867,14 @@ export default function WorkspacePage({ params }: { params: Promise<{ id: string
                   ) : (
                     <>
                       <button
-                        onClick={() => handleRunTestCases()}
+                        onClick={() => handleRunCode()}
                         disabled={isRunning || isSubmitting}
-                        className="flex-1 py-3 px-3.5 rounded-xl border border-[#30363D] bg-[#21262D] hover:bg-[#30363D] active:scale-[0.98] text-xs font-bold text-[#E6EDF3] flex items-center justify-center gap-2 transition-all disabled:opacity-50 cursor-pointer shadow-sm"
+                        className="flex-1 py-2.5 px-3 rounded-[4px] border border-[#333333] bg-[#1C1C1C] hover:bg-[#242424] active:scale-[0.98] text-xs font-mono font-bold text-[#F5F5F5] flex items-center justify-center gap-2 transition-all disabled:opacity-50 cursor-pointer shadow-sm"
                       >
                         {isRunning ? (
-                          <RefreshCw className="h-4 w-4 animate-spin text-[#58A6FF]" />
+                          <RefreshCw className="h-4 w-4 animate-spin text-[#FF6B00]" />
                         ) : (
-                          <Play className="h-4 w-4 fill-current text-emerald-400" />
+                          <Play className="h-4 w-4 fill-current text-[#FF6B00]" />
                         )}
                         <span>Run</span>
                       </button>
@@ -1804,16 +1882,14 @@ export default function WorkspacePage({ params }: { params: Promise<{ id: string
                       <button
                         onClick={handleSubmitCode}
                         disabled={isRunning || isSubmitting}
-                        className="flex-[1.6] py-3 px-4 rounded-xl bg-gradient-to-r from-[#238636] via-[#2EA043] to-[#3FB950] hover:from-[#2EA043] hover:to-[#3FB950] active:scale-[0.98] text-white text-xs font-extrabold flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/30 hover:shadow-emerald-600/50 transition-all disabled:opacity-50 cursor-pointer relative overflow-hidden"
+                        className="flex-[1.4] py-2.5 px-3.5 rounded-[4px] bg-[#FF6B00] hover:bg-[#E05F00] active:scale-[0.98] text-black text-xs font-mono font-bold flex items-center justify-center gap-2 shadow-lg transition-all disabled:opacity-50 cursor-pointer"
                       >
                         {isSubmitting ? (
-                          <RefreshCw className="h-4 w-4 animate-spin text-white shrink-0" />
+                          <RefreshCw className="h-4 w-4 animate-spin text-black shrink-0" />
                         ) : (
-                          <div className="h-5 w-5 rounded-full bg-white/20 flex items-center justify-center shrink-0">
-                            <Check className="h-3.5 w-3.5 stroke-[3] text-white" />
-                          </div>
+                          <Check className="h-3.5 w-3.5 stroke-[3] text-black" />
                         )}
-                        <span className="tracking-wide uppercase text-[11px]">Submit Solution</span>
+                        <span className="tracking-wide uppercase text-[11px]">Verify</span>
                       </button>
                     </>
                   )}
@@ -1825,7 +1901,7 @@ export default function WorkspacePage({ params }: { params: Promise<{ id: string
 
         {/* Mobile Tab 3: Interview Q&A */}
         {mobileTab === 'interview' && problem && (
-          <div className="flex-1 flex flex-col min-h-0 bg-[#070A0F] overflow-hidden">
+          <div className="flex-1 flex flex-col min-h-0 bg-[#090909] overflow-hidden">
             <div className="flex-1 overflow-y-auto">
               <InterviewPanel
                 problem={problem}
@@ -1845,19 +1921,19 @@ export default function WorkspacePage({ params }: { params: Promise<{ id: string
             className="flex-1"
             aria-hidden="true"
           />
-          <div className="bg-[#161B22] border-t border-[#30363D] rounded-t-2xl max-h-[82vh] flex flex-col shadow-2xl animate-in slide-in-from-bottom duration-200">
+          <div className="bg-[#121212] border-t border-[#262626] rounded-t-xl max-h-[82vh] flex flex-col shadow-2xl animate-in slide-in-from-bottom duration-200">
             {/* Sheet Header */}
-            <div className="p-4 border-b border-[#21262D] flex items-center justify-between">
+            <div className="p-4 border-b border-[#242424] flex items-center justify-between">
               <div className="flex items-center gap-2.5">
                 {runResponse?.success &&
                 (!runResponse.test_results || runResponse.test_results.every((t) => t.passed)) ? (
-                  <div className="flex items-center gap-2 text-emerald-400 font-bold text-sm">
-                    <Check className="h-5 w-5 bg-emerald-500/20 rounded-full p-1 border border-emerald-500/40" />
+                  <div className="flex items-center gap-2 text-[#38A169] font-bold text-sm font-mono">
+                    <Check className="h-5 w-5 bg-[#0E1A12] rounded-full p-1 border border-[#2E4A35]" />
                     <span>All Test Cases Passed!</span>
                   </div>
                 ) : (
-                  <div className="flex items-center gap-2 text-red-400 font-bold text-sm">
-                    <X className="h-5 w-5 bg-red-500/20 rounded-full p-1 border border-red-500/40" />
+                  <div className="flex items-center gap-2 text-[#E53935] font-bold text-sm font-mono">
+                    <X className="h-5 w-5 bg-[#1A0E0E] rounded-full p-1 border border-[#3E1A1A]" />
                     <span>
                       {runResponse?.test_results
                         ? `${runResponse.test_results.filter((t) => t.passed).length}/${runResponse.test_results.length} Tests Passed`
@@ -1866,7 +1942,7 @@ export default function WorkspacePage({ params }: { params: Promise<{ id: string
                   </div>
                 )}
                 {lastExecutionRuntime > 0 && (
-                  <span className="text-[11px] font-mono text-[#8B949E]">
+                  <span className="text-[11px] font-mono text-[#888888]">
                     {lastExecutionRuntime}ms
                   </span>
                 )}
@@ -1874,14 +1950,14 @@ export default function WorkspacePage({ params }: { params: Promise<{ id: string
 
               <button
                 onClick={() => setMobileDrawerOpen(false)}
-                className="p-1.5 rounded-lg text-[#8B949E] hover:text-white hover:bg-[#21262D] transition-colors cursor-pointer"
+                className="p-1.5 rounded-[4px] text-[#888888] hover:text-white hover:bg-[#1A1A1A] transition-colors cursor-pointer"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
             {/* Sheet Content */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            <div className="flex-1 overflow-y-auto p-4 space-y-4 font-mono">
               {/* Test Case Selection Pills */}
               {problem?.visible_test_cases && problem.visible_test_cases.length > 0 && (
                 <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
@@ -1892,10 +1968,10 @@ export default function WorkspacePage({ params }: { params: Promise<{ id: string
                       <button
                         key={idx}
                         onClick={() => setSelectedCaseIndex(idx)}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-mono font-medium flex items-center gap-1.5 transition-all shrink-0 cursor-pointer ${
+                        className={`px-3 py-1.5 rounded-[4px] text-xs font-mono font-medium flex items-center gap-1.5 transition-all shrink-0 cursor-pointer ${
                           isSelected
-                            ? 'bg-[#1F6FEB] text-white'
-                            : 'bg-[#21262D] text-[#8B949E] border border-[#30363D]'
+                            ? 'bg-[#FF6B00] text-black font-bold'
+                            : 'bg-[#1A1A1A] text-[#888888] border border-[#2E2E2E]'
                         }`}
                       >
                         {res !== undefined && (

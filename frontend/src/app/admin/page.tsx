@@ -68,13 +68,13 @@ export default function AdminDashboardPage() {
             </p>
           </div>
 
-          <div className="flex items-center gap-2 rounded-xl border border-zinc-800 bg-zinc-950 p-1 text-xs">
+          <div className="flex items-center gap-2 rounded-xl border border-zinc-800 bg-zinc-950 p-1 text-xs overflow-x-auto scrollbar-none whitespace-nowrap max-w-full">
             <button
               onClick={() => {
                 sounds.playClick();
                 setActiveTab('analytics');
               }}
-              className={`rounded-lg px-3.5 py-1.5 font-bold transition ${
+              className={`rounded-lg px-3.5 py-1.5 font-bold transition shrink-0 ${
                 activeTab === 'analytics' ? 'bg-violet-600 text-white' : 'text-zinc-400'
               }`}
             >
@@ -85,7 +85,7 @@ export default function AdminDashboardPage() {
                 sounds.playClick();
                 setActiveTab('challenges');
               }}
-              className={`rounded-lg px-3.5 py-1.5 font-bold transition ${
+              className={`rounded-lg px-3.5 py-1.5 font-bold transition shrink-0 ${
                 activeTab === 'challenges' ? 'bg-violet-600 text-white' : 'text-zinc-400'
               }`}
             >
@@ -96,7 +96,7 @@ export default function AdminDashboardPage() {
                 sounds.playClick();
                 setActiveTab('users');
               }}
-              className={`rounded-lg px-3.5 py-1.5 font-bold transition ${
+              className={`rounded-lg px-3.5 py-1.5 font-bold transition shrink-0 ${
                 activeTab === 'users' ? 'bg-violet-600 text-white' : 'text-zinc-400'
               }`}
             >
@@ -164,38 +164,40 @@ export default function AdminDashboardPage() {
             </div>
 
             <div className="rounded-2xl border border-zinc-800 bg-zinc-950/60 overflow-hidden backdrop-blur-xl">
-              <table className="w-full text-left text-xs">
-                <thead>
-                  <tr className="border-b border-zinc-800 bg-zinc-900/60 text-zinc-400 uppercase tracking-wider text-[10px]">
-                    <th className="px-4 py-3">LVL</th>
-                    <th className="px-4 py-3">Sector</th>
-                    <th className="px-4 py-3">Title</th>
-                    <th className="px-4 py-3">Difficulty</th>
-                    <th className="px-4 py-3">Type</th>
-                    <th className="px-4 py-3">Category</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-zinc-800/60 font-mono">
-                  {chapters.flatMap((c) => c.levels).map((lvl) => (
-                    <tr key={lvl.id} className="hover:bg-violet-950/10 transition">
-                      <td className="px-4 py-3 font-bold text-cyan-400">{lvl.code_id || `#${lvl.level_number}`}</td>
-                      <td className="px-4 py-3 text-zinc-400">Ch.{lvl.chapter_id}</td>
-                      <td className="px-4 py-3 font-sans font-bold text-white">{lvl.title}</td>
-                      <td className="px-4 py-3 text-zinc-400">{lvl.difficulty}</td>
-                      <td className="px-4 py-3">
-                        {lvl.is_boss ? (
-                          <span className="text-amber-400 font-bold">Comprehensive Milestone</span>
-                        ) : (
-                          <span className="text-zinc-500">Core SQL</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-zinc-400">
-                        {lvl.track || 'Relational Database Engine'}
-                      </td>
+              <div className="overflow-x-auto scrollbar-thin">
+                <table className="w-full min-w-[640px] text-left text-xs">
+                  <thead>
+                    <tr className="border-b border-zinc-800 bg-zinc-900/60 text-zinc-400 uppercase tracking-wider text-[10px]">
+                      <th className="px-4 py-3">LVL</th>
+                      <th className="px-4 py-3">Sector</th>
+                      <th className="px-4 py-3">Title</th>
+                      <th className="px-4 py-3">Difficulty</th>
+                      <th className="px-4 py-3">Type</th>
+                      <th className="px-4 py-3">Category</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-zinc-800/60 font-mono">
+                    {chapters.flatMap((c) => c.levels).map((lvl) => (
+                      <tr key={lvl.id} className="hover:bg-violet-950/10 transition">
+                        <td className="px-4 py-3 font-bold text-cyan-400">{lvl.code_id || `#${lvl.level_number}`}</td>
+                        <td className="px-4 py-3 text-zinc-400">Ch.{lvl.chapter_id}</td>
+                        <td className="px-4 py-3 font-sans font-bold text-white">{lvl.title}</td>
+                        <td className="px-4 py-3 text-zinc-400">{lvl.difficulty}</td>
+                        <td className="px-4 py-3">
+                          {lvl.is_boss ? (
+                            <span className="text-amber-400 font-bold">Comprehensive Milestone</span>
+                          ) : (
+                            <span className="text-zinc-500">Core SQL</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-zinc-400">
+                          {lvl.track || 'Relational Database Engine'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         )}
@@ -204,59 +206,61 @@ export default function AdminDashboardPage() {
         {activeTab === 'users' && (
           <div className="space-y-6">
             <div className="rounded-2xl border border-zinc-800 bg-zinc-950/60 overflow-hidden backdrop-blur-xl">
-              <table className="w-full text-left text-xs">
-                <thead>
-                  <tr className="border-b border-zinc-800 bg-zinc-900/60 text-zinc-400 uppercase tracking-wider text-[10px]">
-                    <th className="px-4 py-3">User</th>
-                    <th className="px-4 py-3">Role</th>
-                    <th className="px-4 py-3">Joined</th>
-                    <th className="px-4 py-3 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-zinc-800/60 font-mono">
-                  {usersList.map((u) => (
-                    <tr key={u.id} className="hover:bg-violet-950/10 transition">
-                      <td className="px-4 py-3 font-sans font-bold text-white">
-                        {u.username}
-                        <span className="block font-mono text-[10px] text-zinc-500">{u.email}</span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span
-                          className={`rounded px-1.5 py-0.5 text-[10px] font-bold uppercase ${
-                            u.role === 'admin'
-                              ? 'bg-violet-900/60 text-violet-300 border border-violet-700/50'
-                              : 'bg-zinc-800 text-zinc-400'
-                          }`}
-                        >
-                          {u.role}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-zinc-400">{u.created_at ? new Date(u.created_at).toLocaleDateString() : 'Active'}</td>
-                      <td className="px-4 py-3 text-right">
-                        <div className="flex items-center justify-end gap-1.5 font-sans">
-                          {u.role !== 'admin' ? (
-                            <button
-                              onClick={() => handleAdjustUser(u.id, { role: 'admin' as any })}
-                              className="rounded bg-violet-500/20 border border-violet-500/40 px-2 py-0.5 text-[10px] font-bold text-violet-300 hover:bg-violet-500/40"
-                              title="Promote to Admin"
-                            >
-                              Promote to Admin
-                            </button>
-                          ) : (
-                            <button
-                              onClick={() => handleAdjustUser(u.id, { role: 'user' as any })}
-                              className="rounded bg-zinc-800 border border-zinc-700 px-2 py-0.5 text-[10px] font-bold text-zinc-300 hover:bg-zinc-700"
-                              title="Set to Standard User"
-                            >
-                              Set to User
-                            </button>
-                          )}
-                        </div>
-                      </td>
+              <div className="overflow-x-auto scrollbar-thin">
+                <table className="w-full min-w-[560px] text-left text-xs">
+                  <thead>
+                    <tr className="border-b border-zinc-800 bg-zinc-900/60 text-zinc-400 uppercase tracking-wider text-[10px]">
+                      <th className="px-4 py-3">User</th>
+                      <th className="px-4 py-3">Role</th>
+                      <th className="px-4 py-3">Joined</th>
+                      <th className="px-4 py-3 text-right">Actions</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-zinc-800/60 font-mono">
+                    {usersList.map((u) => (
+                      <tr key={u.id} className="hover:bg-violet-950/10 transition">
+                        <td className="px-4 py-3 font-sans font-bold text-white">
+                          {u.username}
+                          <span className="block font-mono text-[10px] text-zinc-500">{u.email}</span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span
+                            className={`rounded px-1.5 py-0.5 text-[10px] font-bold uppercase ${
+                              u.role === 'admin'
+                                ? 'bg-violet-900/60 text-violet-300 border border-violet-700/50'
+                                : 'bg-zinc-800 text-zinc-400'
+                            }`}
+                          >
+                            {u.role}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-zinc-400">{u.created_at ? new Date(u.created_at).toLocaleDateString() : 'Active'}</td>
+                        <td className="px-4 py-3 text-right">
+                          <div className="flex items-center justify-end gap-1.5 font-sans">
+                            {u.role !== 'admin' ? (
+                              <button
+                                onClick={() => handleAdjustUser(u.id, { role: 'admin' as any })}
+                                className="rounded bg-violet-500/20 border border-violet-500/40 px-2 py-0.5 text-[10px] font-bold text-violet-300 hover:bg-violet-500/40"
+                                title="Promote to Admin"
+                              >
+                                Promote to Admin
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => handleAdjustUser(u.id, { role: 'user' as any })}
+                                className="rounded bg-zinc-800 border border-zinc-700 px-2 py-0.5 text-[10px] font-bold text-zinc-300 hover:bg-zinc-700"
+                                title="Set to Standard User"
+                              >
+                                Set to User
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         )}

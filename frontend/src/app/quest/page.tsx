@@ -239,14 +239,14 @@ function CurriculumExplorerContent() {
 
         {/* Track Filter Tabs & Search Bar */}
         <div className="max-w-[1800px] mx-auto mt-4 flex flex-wrap items-center justify-between gap-2.5 pt-3 border-t border-[#1E1E1E]">
-          {/* Track Selector Tabs */}
-          <div className="flex items-center p-0.5 bg-[#0E0E0E] border border-[#242424] rounded-[4px] gap-0.5">
+          {/* Track Selector Tabs (Horizontally scrollable on mobile/tablet) */}
+          <div className="flex items-center p-0.5 bg-[#0E0E0E] border border-[#242424] rounded-[4px] gap-0.5 overflow-x-auto scrollbar-none max-w-full shrink-0">
             <button
               onClick={() => {
                 setActiveTrack('all');
                 setSelectedModule('all');
               }}
-              className={`px-3 py-1 font-mono text-xs transition-all duration-[120ms] rounded-[2px] ${activeTrack === 'all'
+              className={`shrink-0 whitespace-nowrap px-3 py-1 font-mono text-xs transition-all duration-[120ms] rounded-[2px] ${activeTrack === 'all'
                   ? 'bg-[#222222] text-[#F5F5F5] font-bold border border-[#3A3A3A]'
                   : 'text-[#888888] hover:text-[#D4D4D4]'
                 }`}
@@ -259,7 +259,7 @@ function CurriculumExplorerContent() {
                 setActiveTrack('fundamentals');
                 setSelectedModule('all');
               }}
-              className={`px-3 py-1 font-mono text-xs transition-all duration-[120ms] rounded-[2px] ${activeTrack === 'fundamentals'
+              className={`shrink-0 whitespace-nowrap px-3 py-1 font-mono text-xs transition-all duration-[120ms] rounded-[2px] ${activeTrack === 'fundamentals'
                   ? 'bg-[#222222] text-[#48BB78] font-bold border border-[#3A3A3A]'
                   : 'text-[#888888] hover:text-[#D4D4D4]'
                 }`}
@@ -272,7 +272,7 @@ function CurriculumExplorerContent() {
                 setActiveTrack('core');
                 setSelectedModule('all');
               }}
-              className={`px-3 py-1 font-mono text-xs transition-all duration-[120ms] rounded-[2px] ${activeTrack === 'core'
+              className={`shrink-0 whitespace-nowrap px-3 py-1 font-mono text-xs transition-all duration-[120ms] rounded-[2px] ${activeTrack === 'core'
                   ? 'bg-[#222222] text-[#FF6B00] font-bold border border-[#3A3A3A]'
                   : 'text-[#888888] hover:text-[#D4D4D4]'
                 }`}
@@ -285,7 +285,7 @@ function CurriculumExplorerContent() {
                 setActiveTrack('advanced');
                 setSelectedModule('all');
               }}
-              className={`px-3 py-1 font-mono text-xs transition-all duration-[120ms] rounded-[2px] ${activeTrack === 'advanced'
+              className={`shrink-0 whitespace-nowrap px-3 py-1 font-mono text-xs transition-all duration-[120ms] rounded-[2px] ${activeTrack === 'advanced'
                   ? 'bg-[#222222] text-[#A855F7] font-bold border border-[#3A3A3A]'
                   : 'text-[#888888] hover:text-[#D4D4D4]'
                 }`}
@@ -298,7 +298,7 @@ function CurriculumExplorerContent() {
                 setActiveTrack('master');
                 setSelectedModule('all');
               }}
-              className={`px-3 py-1 font-mono text-xs transition-all duration-[120ms] rounded-[2px] ${activeTrack === 'master'
+              className={`shrink-0 whitespace-nowrap px-3 py-1 font-mono text-xs transition-all duration-[120ms] rounded-[2px] ${activeTrack === 'master'
                   ? 'bg-[#222222] text-[#38BDF8] font-bold border border-[#3A3A3A]'
                   : 'text-[#888888] hover:text-[#D4D4D4]'
                 }`}
@@ -310,7 +310,7 @@ function CurriculumExplorerContent() {
 
           {/* Search, Filter & View Controls */}
           <div className="flex flex-wrap items-center gap-2 flex-1 max-w-xl justify-end">
-            <div className="relative flex-1 min-w-[180px]">
+            <div className="relative flex-1 min-w-[160px]">
               <Search className="absolute left-2.5 top-2 h-3.5 w-3.5 text-[#666666]" />
               <input
                 type="text"
@@ -321,13 +321,27 @@ function CurriculumExplorerContent() {
               />
             </div>
 
+            {/* Mobile / Tablet Module Selector (< LG) */}
+            <select
+              value={selectedModule}
+              onChange={(e) => setSelectedModule(e.target.value === 'all' ? 'all' : parseInt(e.target.value, 10))}
+              className="lg:hidden h-8 px-2 font-mono bg-[#0E0E0E] border border-[#242424] rounded-[4px] text-xs text-[#B0B0B0] outline-none cursor-pointer max-w-[160px] truncate"
+            >
+              <option value="all">ALL MODULES ({trackChapters.length})</option>
+              {trackChapters.map((chap) => (
+                <option key={chap.chapter_id} value={chap.chapter_id}>
+                  M{chap.chapter_id}: {chap.chapter_title.replace(/^Module \d+:\s*/, '')}
+                </option>
+              ))}
+            </select>
+
             {/* Difficulty Dropdown */}
             <select
               value={difficultyFilter}
               onChange={(e) => setDifficultyFilter(e.target.value as any)}
               className="h-8 px-2 font-mono bg-[#0E0E0E] border border-[#242424] rounded-[4px] text-xs text-[#B0B0B0] outline-none cursor-pointer"
             >
-              <option value="all">ALL DIFFICULTIES</option>
+              <option value="all">DIFFICULTY</option>
               <option value="easy">EASY</option>
               <option value="medium">MEDIUM</option>
               <option value="hard">HARD</option>
@@ -339,7 +353,7 @@ function CurriculumExplorerContent() {
               onChange={(e) => setStatusFilter(e.target.value as any)}
               className="h-8 px-2 font-mono bg-[#0E0E0E] border border-[#242424] rounded-[4px] text-xs text-[#B0B0B0] outline-none cursor-pointer"
             >
-              <option value="all">ALL STATUSES</option>
+              <option value="all">STATUS</option>
               <option value="solved">SOLVED</option>
               <option value="unsolved">UNSOLVED</option>
             </select>
@@ -427,7 +441,8 @@ function CurriculumExplorerContent() {
           /* Table Matrix View with Left Technical Module Index */
           <div className="flex-1 flex min-h-0 overflow-hidden w-full">
             {/* Left Module Index */}
-            <aside className="w-64 border-r border-[#242424] bg-[#0D0D0D] flex flex-col min-h-0 shrink-0 hidden md:flex">
+            {/* Left Module Index (Hidden below LG where dropdown selector takes over) */}
+            <aside className="w-64 border-r border-[#242424] bg-[#0D0D0D] flex flex-col min-h-0 shrink-0 hidden lg:flex">
               <div className="p-3 border-b border-[#202020] flex items-center justify-between shrink-0 font-mono text-[10px] font-bold uppercase tracking-wider text-[#777777]">
                 <span>MODULE INDEX ({trackChapters.length})</span>
                 <span className="text-[#FF6B00]">{trackSolvedCount}/{trackTotalCount}</span>
@@ -484,8 +499,8 @@ function CurriculumExplorerContent() {
                   <span>{trackSolvedCount} of {trackTotalCount} Mastered</span>
                 </div>
 
-                <div className="rounded-[6px] border border-[#242424] bg-[#121212] overflow-hidden">
-                  <table className="w-full text-left font-mono text-xs border-collapse">
+                <div className="rounded-[6px] border border-[#242424] bg-[#121212] overflow-x-auto">
+                  <table className="w-full min-w-[580px] text-left font-mono text-xs border-collapse">
                     <thead>
                       <tr className="border-b border-[#242424] bg-[#0E0E0E] text-[#777777]">
                         <th className="py-2.5 px-3 font-semibold text-[10px] uppercase w-20">STATUS</th>

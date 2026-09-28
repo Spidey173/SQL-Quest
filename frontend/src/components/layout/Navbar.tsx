@@ -168,10 +168,11 @@ export default function Navbar() {
             {/* Command Palette Trigger */}
             <button
               onClick={() => setPaletteOpen(true)}
-              className="hidden sm:flex items-center gap-2 px-2.5 py-1.5 rounded-[4px] border border-[#262626] bg-[#0E0E0E] text-[#888888] hover:text-[#D4D4D4] hover:border-[#383838] transition-all duration-[120ms] text-xs font-mono"
+              className="hidden sm:flex items-center gap-2 px-2.5 py-1.5 rounded-[4px] border border-[#262626] bg-[#0E0E0E] text-[#888888] hover:text-[#D4D4D4] hover:border-[#383838] transition-all duration-[120ms] text-xs font-mono cursor-pointer"
             >
               <Search className="h-3 w-3 text-[#666666]" />
-              <span className="text-[11px]">SEARCH SQL CHALLENGES</span>
+              <span className="text-[11px] hidden xl:inline">SEARCH SQL CHALLENGES</span>
+              <span className="text-[11px] inline xl:hidden">SEARCH</span>
               <kbd className="hidden lg:inline-block px-1.5 py-0.2 text-[9px] font-mono bg-[#1C1C1C] border border-[#2E2E2E] rounded-[2px] text-[#888888]">
                 ⌘K
               </kbd>

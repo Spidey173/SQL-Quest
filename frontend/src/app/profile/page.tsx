@@ -349,7 +349,7 @@ export default function TelemetryPage() {
         </div>
 
         {/* 2. Total Completion in Whole & Types Breakdown (Core Analytics Cockpit) */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
 
           {/* Card A: Total Completion in Whole */}
           <div className="relative rounded-[6px] border border-[#242424] bg-[#121212] p-5 sm:p-6 flex flex-col justify-between shadow-xl overflow-hidden">
@@ -431,7 +431,7 @@ export default function TelemetryPage() {
           </div>
 
           {/* Card C: Execution Velocity & Accuracy */}
-          <div className="relative rounded-[6px] border border-[#242424] bg-[#121212] p-5 sm:p-6 flex flex-col justify-between shadow-xl overflow-hidden">
+          <div className="relative rounded-[6px] border border-[#242424] bg-[#121212] p-5 sm:p-6 flex flex-col justify-between shadow-xl overflow-hidden md:col-span-2 xl:col-span-1">
             <div className="absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-white/[0.08] to-transparent pointer-events-none" />
             <div>
               <div className="flex items-center justify-between pb-3 border-b border-[#1E1E1E]">
@@ -593,12 +593,12 @@ export default function TelemetryPage() {
             </div>
           )}
 
-          {/* Velocity Bar Track (Full Width for 14D, Scrollable for 30D / 60D) */}
+          {/* Velocity Bar Track (Fluid Width for 14D with minimum bar sizes, Scrollable for 30D / 60D) */}
           <div
             ref={scrollContainerRef}
             className={
               daysRange === 14
-                ? 'w-full flex items-end justify-between gap-2 sm:gap-3 pb-3 pt-4 px-1 select-none'
+                ? 'w-full flex items-end justify-between gap-1.5 sm:gap-3 overflow-x-auto scrollbar-thin scrollbar-thumb-[#242424] pb-3 pt-4 px-1 select-none'
                 : 'flex items-end gap-2.5 sm:gap-3 overflow-x-auto scrollbar-thin scrollbar-thumb-[#242424] pb-3 pt-4 px-1 select-none scroll-smooth'
             }
           >
@@ -628,7 +628,7 @@ export default function TelemetryPage() {
                   }
                   className={`flex flex-col items-center justify-end group cursor-pointer transition-transform duration-150 hover:-translate-y-1 ${
                     daysRange === 14
-                      ? 'flex-1 max-w-[76px]'
+                      ? 'min-w-[42px] sm:min-w-[48px] flex-1 max-w-[76px]'
                       : 'min-w-[56px] sm:min-w-[62px]'
                   } ${isSelected ? 'scale-105' : ''}`}
                   title={`${day.date}: ${day.solvedCount} solved, ${day.totalRuns} runs`}

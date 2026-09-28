@@ -323,7 +323,7 @@ export function RelationalCatalogMatrix({
       </div>
 
       <div className="overflow-x-auto">
-        <table className="w-full text-left font-mono text-xs border-collapse">
+        <table className="w-full min-w-[580px] text-left font-mono text-xs border-collapse">
           <thead>
             <tr className="border-b border-[#202020] text-[#666666] text-[10px] uppercase">
               <th className="py-2 px-3 w-16">MOD</th>

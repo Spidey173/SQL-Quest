@@ -286,7 +286,7 @@ export default function DashboardPage() {
           ) : (
             <div className="space-y-3">
               <div className="overflow-x-auto">
-                <table className="w-full text-left font-mono text-xs border-collapse">
+                <table className="w-full min-w-[580px] text-left font-mono text-xs border-collapse">
                   <thead>
                     <tr className="border-b border-[#242424] text-[#777777]">
                       <th className="py-2.5 px-3 font-semibold text-[10px] uppercase">STATUS</th>
