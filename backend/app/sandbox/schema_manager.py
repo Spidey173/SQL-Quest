@@ -163,7 +163,60 @@ INSERT INTO branches VALUES (2, 'Westside Hub', 'Chicago', 320000.00);
 INSERT INTO branches VALUES (3, 'Silicon Office', 'San Francisco', 680000.00);"""
 }
 
-USER_DB_SESSIONS: Dict[str, str] = {}
+import os
+import hashlib
+import tempfile
+
+class SessionManager:
+    """
+    High-performance session store with dual-tier storage:
+    Tier 1: Fast in-memory Python dictionary cache
+    Tier 2: Persistent atomic filesystem cache to prevent serverless worker/cold-start state loss
+    """
+    def __init__(self):
+        self._memory: Dict[str, str] = {}
+        self._dir = os.path.join(tempfile.gettempdir(), "sqlquest_db_sessions")
+        try:
+            os.makedirs(self._dir, exist_ok=True)
+        except Exception:
+            pass
+
+    def _path(self, key: str) -> str:
+        safe_key = hashlib.sha256(key.encode()).hexdigest()[:24]
+        return os.path.join(self._dir, f"sess_{safe_key}.sql")
+
+    def get(self, key: str, default: Optional[str] = None) -> Optional[str]:
+        if key in self._memory:
+            return self._memory[key]
+        p = self._path(key)
+        if os.path.exists(p):
+            try:
+                with open(p, "r", encoding="utf-8") as f:
+                    val = f.read()
+                    self._memory[key] = val
+                    return val
+            except Exception:
+                pass
+        return default
+
+    def __getitem__(self, key: str) -> str:
+        val = self.get(key)
+        if val is None:
+            raise KeyError(key)
+        return val
+
+    def __setitem__(self, key: str, val: str):
+        self._memory[key] = val
+        try:
+            with open(self._path(key), "w", encoding="utf-8") as f:
+                f.write(val)
+        except Exception:
+            pass
+
+    def __contains__(self, key: str) -> bool:
+        return self.get(key) is not None
+
+USER_DB_SESSIONS = SessionManager()
 
 def get_relevant_tables_for_challenge(title: str, objective: str = "", starter_code: str = "", story: str = "") -> List[str]:
     combined = f"{title} {objective} {starter_code} {story}".lower()

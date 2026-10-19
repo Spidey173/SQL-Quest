@@ -232,7 +232,9 @@ async def run_query(req: CodeRunRequest, db: AsyncSession = Depends(get_db)):
     if not visible_tests:
         visible_tests = ch.test_cases[:1]
 
-    passed_all, test_results, total_time, columns, rows = await evaluate_challenge_test_cases(req.code, ch.expected_output, visible_tests, session_dump=session_dump)
+    passed_all, test_results, total_time, columns, rows, query_plan = await evaluate_challenge_test_cases(
+        req.code, ch.expected_output, visible_tests, session_dump=session_dump, return_plan=True
+    )
 
     # Clean query execution means no SQL syntax or database runtime error occurred
     first_res = test_results[0] if test_results else {}
@@ -249,7 +251,8 @@ async def run_query(req: CodeRunRequest, db: AsyncSession = Depends(get_db)):
         test_results=[TestCaseResult(**tr) for tr in test_results],
         passed_all=passed_all,
         execution_time_ms=total_time,
-        security_error=first_error if "Security Violation" in str(first_error) else None
+        security_error=first_error if "Security Violation" in str(first_error) else None,
+        query_plan=query_plan
     )
 
 
@@ -293,7 +296,9 @@ async def submit_query(
     # Unlimited attempts enabled: no lives restriction for studying & practice
 
     # Run against all test cases (both visible and hidden)
-    passed_all, test_results, total_time, columns, rows = await evaluate_challenge_test_cases(req.code, ch.expected_output, ch.test_cases, session_dump=session_dump)
+    passed_all, test_results, total_time, columns, rows, query_plan = await evaluate_challenge_test_cases(
+        req.code, ch.expected_output, ch.test_cases, session_dump=session_dump, return_plan=True
+    )
 
     # Record submission history if user is logged in
     passed_tests_count = sum(1 for tr in test_results if tr.get("passed"))
@@ -364,7 +369,8 @@ async def submit_query(
             execution_time_ms=total_time,
             next_challenge_id=next_ch.code_id if next_ch else None,
             next_code_id=next_ch.code_id if next_ch else None,
-            message="Challenge passed successfully!"
+            message="Challenge passed successfully!",
+            query_plan=query_plan
         )
 
     else:
@@ -400,5 +406,6 @@ async def submit_query(
             execution_time_ms=total_time,
             next_challenge_id=None,
             next_code_id=None,
-            message="Some test cases failed. Keep refining your query!"
+            message="Some test cases failed. Keep refining your query!",
+            query_plan=query_plan
         )

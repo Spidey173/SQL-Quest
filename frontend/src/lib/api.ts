@@ -103,6 +103,22 @@ export const api = {
     return request('/auth/me', {}, 10000);
   },
 
+  async migrateGuest(solvedIds: (number | string)[], submissions: SubmissionLogEntry[]): Promise<{ success: boolean; migrated_solved_count: number; message: string }> {
+    return request('/auth/migrate-guest', {
+      method: 'POST',
+      body: JSON.stringify({
+        solved_ids: solvedIds,
+        submissions: submissions.map((s) => ({
+          problemId: s.problemId,
+          passed: s.passed,
+          runtimeMs: s.runtimeMs,
+          code: s.code,
+          timestamp: s.timestamp,
+        })),
+      }),
+    }, 15000);
+  },
+
   // Challenges
   async getChapters(forceRefresh = false): Promise<ChapterGroup[]> {
     if (forceRefresh) {

@@ -104,6 +104,14 @@ export interface TestCaseResult {
   hidden: boolean;
 }
 
+export interface QueryPlanNode {
+  id: number;
+  parent: number;
+  detail: string;
+  op_type: 'INDEX_SEARCH' | 'TEMP_B_TREE' | 'FULL_TABLE_SCAN' | 'EXECUTE' | string;
+  efficiency: 'Optimal' | 'Memory Sort' | 'Sequential Scan' | 'Standard' | string;
+}
+
 export interface CodeRunResponse {
   success: boolean;
   stdout: string;
@@ -114,6 +122,7 @@ export interface CodeRunResponse {
   passed_all: boolean;
   execution_time_ms: number;
   security_error?: string;
+  query_plan?: QueryPlanNode[];
 }
 
 export interface CodeSubmitResponse {
@@ -131,6 +140,7 @@ export interface CodeSubmitResponse {
   new_achievements?: Achievement[];
   message: string;
   boss_defeated?: boolean;
+  query_plan?: QueryPlanNode[];
 }
 
 

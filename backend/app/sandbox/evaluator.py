@@ -73,6 +73,12 @@ def check_sql_output_matches(
     if not (upper_code.startswith("SELECT") or upper_code.startswith("WITH") or upper_code.startswith("DELETE") or upper_code.startswith("UPDATE")):
         return False
 
+    # Anti-cheat check: Reject hardcoded UNION ALL literal tuples without a FROM clause when table records are expected
+    has_from_table = bool(re.search(r"\bFROM\b", upper_code))
+    is_union_literal_bypass = bool(re.search(r"\bUNION\b", upper_code)) and not has_from_table
+    if is_union_literal_bypass and len(target_lines) > 2:
+        return False
+
     if not user_lines:
         # Check if 0 rows returned was expected
         if any("(0 rows returned)" in l.lower() for l in target_lines) or any("(0 rows returned)" in l.lower() for l in full_expected_lines):
@@ -116,13 +122,25 @@ def check_sql_output_matches(
             return float(u_s) == float(t_s)
         except (ValueError, TypeError):
             pass
-        # Dynamic date/time matching: e.g. dates formatted like 2026-09-24, times 12:00:00
-        if re.match(r"^\d{4}-\d{2}-\d{2}$", t_s) and re.match(r"^\d{4}-\d{2}-\d{2}$", u_s):
-            return True
-        if re.match(r"^\d{2}:\d{2}:\d{2}$", t_s) and re.match(r"^\d{2}:\d{2}:\d{2}$", u_s):
-            return True
-        if re.match(r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$", t_s) and re.match(r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$", u_s):
-            return True
+
+        # Accurate date matching: normalize YYYY-MM-DD regardless of timestamp format
+        u_date = re.match(r"^(\d{4}-\d{2}-\d{2})", u_s)
+        t_date = re.match(r"^(\d{4}-\d{2}-\d{2})", t_s)
+        if u_date and t_date:
+            if u_date.group(1) == t_date.group(1):
+                return True
+            from datetime import datetime, timezone
+            today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+            if t_date.group(1) == today_str and u_date.group(1) == today_str:
+                return True
+            return False
+
+        # Accurate time matching: normalize HH:MM(:SS)
+        u_time = re.match(r"^(\d{2}:\d{2})(?::\d{2})?", u_s)
+        t_time = re.match(r"^(\d{2}:\d{2})(?::\d{2})?", t_s)
+        if u_time and t_time:
+            return u_time.group(1) == t_time.group(1)
+
         return False
 
     def row_matches(u_row: List[str], t_row: List[str]) -> bool:
@@ -324,7 +342,8 @@ def evaluate_sql_submission(
         "columns": exec_res["columns"],
         "rows": exec_res["rows"],
         "test_results": test_results,
-        "execution_time_ms": exec_time
+        "execution_time_ms": exec_time,
+        "query_plan": exec_res.get("query_plan", [])
     }
 
 
@@ -333,8 +352,9 @@ async def evaluate_challenge_test_cases(
     user_query: str,
     expected_output_or_testcases: Union[str, List[Dict[str, Any]]],
     test_cases: Optional[List[Dict[str, Any]]] = None,
-    session_dump: Optional[str] = None
-) -> tuple[bool, List[Dict[str, Any]], float, List[str], List[List[Any]]]:
+    session_dump: Optional[str] = None,
+    return_plan: bool = False
+) -> Any:
     if isinstance(expected_output_or_testcases, list):
         tc_list = expected_output_or_testcases
         exp_out = tc_list[0].get("expected", "") if tc_list else ""
@@ -343,6 +363,8 @@ async def evaluate_challenge_test_cases(
         tc_list = test_cases or []
 
     res = evaluate_sql_submission(user_query, exp_out, tc_list, session_dump=session_dump)
+    if return_plan:
+        return res["passed"], res["test_results"], res["execution_time_ms"], res.get("columns", []), res.get("rows", []), res.get("query_plan", [])
     return res["passed"], res["test_results"], res["execution_time_ms"], res.get("columns", []), res.get("rows", [])
 
 

@@ -61,11 +61,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => clearTimeout(timer);
   }, []);
 
+  const syncGuestDataIfPresent = async () => {
+    try {
+      const localSolved = await persistence.getSolvedIds();
+      const localSubs = await persistence.getSubmissions();
+      if ((localSolved && localSolved.length > 0) || (localSubs && localSubs.length > 0)) {
+        await api.migrateGuest(localSolved, localSubs);
+      }
+    } catch (e) {
+      console.warn('Background guest progress sync notice:', e);
+    }
+  };
+
   const login = async (username: string, pass: string) => {
     const data = await api.login(username, pass);
     localStorage.setItem('pq_token', data.access_token);
     setToken(data.access_token);
     setUser(data.user);
+    await syncGuestDataIfPresent();
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new Event('sqlquest_auth_login'));
       window.dispatchEvent(new Event('sqlquest_problem_solved'));
@@ -77,6 +90,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem('pq_token', data.access_token);
     setToken(data.access_token);
     setUser(data.user);
+    await syncGuestDataIfPresent();
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new Event('sqlquest_auth_login'));
       window.dispatchEvent(new Event('sqlquest_problem_solved'));

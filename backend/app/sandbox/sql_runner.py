@@ -388,6 +388,38 @@ def execute_sql_in_sandbox(
                 rows = []
                 stdout_text = "Query executed successfully. (No result set)"
 
+        # Generate query execution plan for SELECT / WITH queries
+        query_plan = []
+        try:
+            plan_stmt = statements[-1] if statements else ""
+            if plan_stmt and re.match(r"^\s*(SELECT|WITH)\b", plan_stmt, re.IGNORECASE):
+                plan_cursor = conn.cursor()
+                plan_cursor.execute(f"EXPLAIN QUERY PLAN {plan_stmt}")
+                for r in plan_cursor.fetchall():
+                    # Format: (selectid, order, from, detail)
+                    detail = r[3] if len(r) > 3 else str(r)
+                    detail_upper = detail.upper()
+                    op_type = "INDEX_SEARCH" if "USING INDEX" in detail_upper else (
+                        "TEMP_B_TREE" if "USE TEMP B-TREE" in detail_upper else (
+                            "FULL_TABLE_SCAN" if "SCAN" in detail_upper else "EXECUTE"
+                        )
+                    )
+                    efficiency = "Optimal" if op_type == "INDEX_SEARCH" else (
+                        "Memory Sort" if op_type == "TEMP_B_TREE" else (
+                            "Sequential Scan" if op_type == "FULL_TABLE_SCAN" else "Standard"
+                        )
+                    )
+                    query_plan.append({
+                        "id": r[0],
+                        "parent": r[1],
+                        "detail": detail,
+                        "op_type": op_type,
+                        "efficiency": efficiency
+                    })
+                plan_cursor.close()
+        except Exception:
+            pass
+
         elapsed_ms = round((time.perf_counter() - start_time) * 1000, 2)
         return {
             "success": True,
@@ -395,7 +427,8 @@ def execute_sql_in_sandbox(
             "stderr": "",
             "columns": columns,
             "rows": rows,
-            "execution_time_ms": elapsed_ms
+            "execution_time_ms": elapsed_ms,
+            "query_plan": query_plan
         }
 
     except sqlite3.OperationalError as err:

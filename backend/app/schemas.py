@@ -112,6 +112,14 @@ class TestCaseResult(BaseModel):
     hidden: bool = False
 
 
+class QueryPlanNode(BaseModel):
+    id: int
+    parent: int
+    detail: str
+    op_type: str = "EXECUTE"  # "INDEX_SEARCH", "TEMP_B_TREE", "FULL_TABLE_SCAN", "EXECUTE"
+    efficiency: str = "Standard"  # "Optimal", "Memory Sort", "Sequential Scan", "Standard"
+
+
 class CodeRunResponse(BaseModel):
     success: bool
     stdout: str
@@ -122,6 +130,7 @@ class CodeRunResponse(BaseModel):
     passed_all: bool
     execution_time_ms: float
     security_error: Optional[str] = None
+    query_plan: List[QueryPlanNode] = []
 
 
 class SchemaTableColumn(BaseModel):
@@ -171,6 +180,27 @@ class CodeSubmitResponse(BaseModel):
     execution_time_ms: float = 0.0
     next_challenge_id: Optional[Union[int, str]] = None
     next_code_id: Optional[str] = None
+    message: str
+    query_plan: List[QueryPlanNode] = []
+
+
+class GuestMigrationSubmission(BaseModel):
+    problemId: Union[int, str]
+    passed: bool = True
+    runtimeMs: float = 12.0
+    code: str = ""
+    timestamp: Optional[float] = None
+
+
+class GuestMigrationRequest(BaseModel):
+    solved_ids: List[Union[int, str]] = []
+    submissions: List[GuestMigrationSubmission] = []
+
+
+class GuestMigrationResponse(BaseModel):
+    success: bool
+    migrated_solved_count: int
+    migrated_submissions_count: int
     message: str
 
 

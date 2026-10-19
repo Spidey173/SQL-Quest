@@ -22,10 +22,11 @@ import {
   Check, X, Terminal, ChevronDown, ChevronUp, Copy, Trash2,
   CheckSquare, RefreshCw, Lock, Unlock,
   Briefcase, Zap, Sparkles, Code, Database, FileCode, AlertCircle, Table,
-  PanelLeftClose, PanelLeftOpen
+  PanelLeftClose, PanelLeftOpen, Cpu
 } from 'lucide-react';
 import { SchemaViewer } from '@/components/ui/SchemaViewer';
 import { SqlResultGrid } from '@/components/ui/SqlResultGrid';
+import { QueryPlanViewer } from '@/components/ui/QueryPlanViewer';
 import { ProblemOneSpecView } from '@/components/ui/ProblemOneSpecView';
 
 const MonacoEditor = dynamic(() => import('@monaco-editor/react'), { ssr: false });
@@ -85,7 +86,7 @@ export default function WorkspacePage({ params }: { params: Promise<{ id: string
   const [isSpecCollapsed, setIsSpecCollapsed] = useState(false);
   // Left Panel Tab: Problem Spec, Database Schema, Solution Vault, Interview Q&A
   const [activeTab, setActiveTab] = useState<'spec' | 'schema' | 'vault' | 'interview'>('spec');
-  const [activeConsoleTab, setActiveConsoleTab] = useState<'terminal' | 'tests'>('terminal');
+  const [activeConsoleTab, setActiveConsoleTab] = useState<'terminal' | 'tests' | 'plan'>('terminal');
   const [selectedCaseIndex, setSelectedCaseIndex] = useState(0);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
 
@@ -1561,16 +1562,41 @@ export default function WorkspacePage({ params }: { params: Promise<{ id: string
               {/* Dock Header */}
               <div className="h-[34px] border-b border-[#242424] bg-[#121212] px-3 flex items-center justify-between shrink-0 select-none font-mono">
                 {/* Left Tabs */}
-                <div className="flex items-center h-full gap-3 text-[11px] font-semibold">
-                  <div className="h-full flex items-center gap-1.5 px-1 text-[#F5F5F5] border-b-2 border-[#FF6B00]">
-                    <span>SQL QUERY OUTPUT</span>
+                <div className="flex items-center h-full gap-1 text-[11px] font-semibold">
+                  <button
+                    onClick={() => setActiveConsoleTab('terminal')}
+                    className={`h-full flex items-center gap-1.5 px-2.5 transition-colors cursor-pointer border-b-2 ${
+                      activeConsoleTab !== 'plan'
+                        ? 'text-[#F5F5F5] border-[#FF6B00] bg-[#161616]'
+                        : 'text-[#888888] border-transparent hover:text-[#D4D4D4]'
+                    }`}
+                  >
+                    <Table className="h-3 w-3 text-[#FF6B00]" />
+                    <span>QUERY OUTPUT</span>
                     {isRunning && (
                       <span className="flex items-center gap-1 text-[9px] text-[#FF6B00] font-mono">
                         <span className="h-1.5 w-1.5 rounded-full bg-[#FF6B00] animate-ping" />
                         executing
                       </span>
                     )}
-                  </div>
+                  </button>
+
+                  <button
+                    onClick={() => setActiveConsoleTab('plan')}
+                    className={`h-full flex items-center gap-1.5 px-2.5 transition-colors cursor-pointer border-b-2 ${
+                      activeConsoleTab === 'plan'
+                        ? 'text-[#F5F5F5] border-[#FF6B00] bg-[#161616]'
+                        : 'text-[#888888] border-transparent hover:text-[#D4D4D4]'
+                    }`}
+                  >
+                    <Cpu className="h-3 w-3 text-[#FFC857]" />
+                    <span>EXECUTION PLAN (EXPLAIN)</span>
+                    {runResponse?.query_plan && runResponse.query_plan.length > 0 && (
+                      <span className="px-1 py-0.2 text-[9px] rounded bg-[#222222] text-[#38A169] font-mono font-bold">
+                        {runResponse.query_plan.length}
+                      </span>
+                    )}
+                  </button>
                 </div>
 
                 {/* Right Action Toolbar */}
@@ -1615,6 +1641,12 @@ export default function WorkspacePage({ params }: { params: Promise<{ id: string
               <div
                 className="flex-1 overflow-y-auto px-4 py-3 bg-[#0F0F0F] text-[#CCCCCC] select-text"
               >
+                {activeConsoleTab === 'plan' ? (
+                  <QueryPlanViewer
+                    queryPlan={runResponse?.query_plan}
+                    executionTimeMs={lastExecutionRuntime}
+                  />
+                ) : (
                   <SqlResultGrid
                     columns={runResponse?.columns}
                     rows={runResponse?.rows}
@@ -1632,6 +1664,7 @@ export default function WorkspacePage({ params }: { params: Promise<{ id: string
                     executionTimeMs={lastExecutionRuntime}
                     tableName={schemaTables.length > 0 ? schemaTables[0].name : "employees"}
                   />
+                )}
               </div>
             </div>
           )}

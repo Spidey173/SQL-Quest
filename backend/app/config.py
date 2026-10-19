@@ -15,10 +15,10 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
 
-    # Database: Anchored directly to Neon PostgreSQL
+    # Database: Loaded securely from environment (.env), falls back to local SQLite if unset
     DATABASE_URL: str = os.getenv(
         "DATABASE_URL",
-        "postgresql://neondb_owner:npg_s7BkLfw0jVqG@ep-ancient-lake-b5be5lb9-pooler.c-7.us-east-2.aws.neon.tech/neondb?sslmode=require"
+        "sqlite:///./sqlquest_local.db"
     )
 
     # Redis (Optional)
