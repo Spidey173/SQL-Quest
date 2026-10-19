@@ -30,10 +30,8 @@ export const SolutionVault: React.FC<SolutionVaultProps> = ({
   problem,
   isSolved,
   unlocked,
-  hintsUsedCount,
   onUnlock,
   onLoadCodeToEditor,
-  onSubmitCode,
 }) => {
   const [isBreakingLock, setIsBreakingLock] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);

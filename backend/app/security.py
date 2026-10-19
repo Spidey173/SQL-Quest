@@ -14,6 +14,7 @@ from sqlalchemy import select
 from app.config import settings
 from app.database import get_db
 from app.models import User
+from app.cache import cache
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_STR}/auth/login", auto_error=False)
 
@@ -49,9 +50,6 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
     return encoded_jwt
-
-
-from app.cache import cache
 
 
 async def get_current_user_optional(

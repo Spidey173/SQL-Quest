@@ -2,7 +2,7 @@ import json
 from typing import List, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, delete
+from sqlalchemy import select, func
 
 from app.database import get_db
 from app.models import Challenge, User, Submission
@@ -86,6 +86,8 @@ async def create_challenge(
     admin: User = Depends(get_current_admin)
 ):
     new_ch = Challenge(
+        code_id=f"SQL-{ch_in.level_number:03d}",
+        track="core",
         chapter_id=ch_in.chapter_id,
         chapter_title=ch_in.chapter_title,
         level_number=ch_in.level_number,

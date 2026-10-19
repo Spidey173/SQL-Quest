@@ -265,7 +265,7 @@ export default function TelemetryPage() {
       totalSolves,
       totalRuns,
     };
-  }, [submissions, solvedToday, daysRange]);
+  }, [submissions, daysRange, allProblems]);
 
   // Auto-scroll to the right (Today) on mount and on range change
   useEffect(() => {

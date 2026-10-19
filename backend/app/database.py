@@ -1,4 +1,5 @@
 from typing import AsyncGenerator
+from sqlalchemy import event
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.orm import declarative_base
 from app.config import settings
@@ -14,8 +15,6 @@ if db_url.startswith("postgresql://") or db_url.startswith("postgres://"):
         db_url = f"{db_url}?ssl=require"
 elif db_url.startswith("sqlite:///"):
     db_url = db_url.replace("sqlite:///", "sqlite+aiosqlite:///", 1)
-
-from sqlalchemy import event
 
 is_postgres = "postgresql" in db_url
 

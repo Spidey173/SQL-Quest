@@ -1,3 +1,6 @@
+import os
+import hashlib
+import tempfile
 import sqlite3
 import re
 from typing import Dict, Any, List, Optional, Tuple
@@ -163,9 +166,6 @@ INSERT INTO branches VALUES (2, 'Westside Hub', 'Chicago', 320000.00);
 INSERT INTO branches VALUES (3, 'Silicon Office', 'San Francisco', 680000.00);"""
 }
 
-import os
-import hashlib
-import tempfile
 
 class SessionManager:
     """

@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { api } from '@/lib/api';
-import { persistence, createDebouncedSaver, isProblemSolved, getCanonicalProblemId } from '@/lib/persistence';
+import { persistence, createDebouncedSaver, isProblemSolved } from '@/lib/persistence';
 import { registerGlobalShortcuts } from '@/lib/shortcuts';
 import {
   ChallengeDetail, CodeRunResponse,
@@ -19,9 +19,9 @@ import { SolutionVault } from '@/components/mentor/SolutionVault';
 import { InterviewPanel } from '@/components/interview/InterviewPanel';
 import {
   Play, RotateCcw, ArrowLeft, ArrowRight, Clock, BookOpen,
-  Check, X, Terminal, ChevronDown, ChevronUp, Copy, Trash2,
-  CheckSquare, RefreshCw, Lock, Unlock,
-  Briefcase, Zap, Sparkles, Code, Database, FileCode, AlertCircle, Table,
+  Check, X, Terminal, ChevronDown, ChevronUp, Copy,
+  RefreshCw, Lock, Unlock,
+  Briefcase, Code, Database, FileCode, Table,
   PanelLeftClose, PanelLeftOpen, Cpu
 } from 'lucide-react';
 import { SchemaViewer } from '@/components/ui/SchemaViewer';
@@ -50,8 +50,6 @@ export default function WorkspacePage({ params }: { params: Promise<{ id: string
   const { user, refreshUser } = useAuth();
   const resolvedParams = use(params);
   const problemParam = resolvedParams.id || 'Basics-001';
-  const numericParam = parseInt(problemParam, 10);
-  const problemId = !isNaN(numericParam) ? numericParam : 1;
 
   // Workspace Data
   const [problem, setProblem] = useState<ChallengeDetail | null>(null);
@@ -65,7 +63,6 @@ export default function WorkspacePage({ params }: { params: Promise<{ id: string
   const [schemaTables, setSchemaTables] = useState<SchemaTableInfo[]>([]);
   const [isSettingUpSchema, setIsSettingUpSchema] = useState(false);
   const [isResettingSchema, setIsResettingSchema] = useState(false);
-  const [setupFeedback, setSetupFeedback] = useState<{ success?: boolean; message?: string } | null>(null);
 
   // Persistent User Session ID for in-memory SQLite sandbox persistence
   const [sessionId, setSessionId] = useState<string>('');
@@ -106,23 +103,7 @@ export default function WorkspacePage({ params }: { params: Promise<{ id: string
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [runResponse, setRunResponse] = useState<CodeRunResponse | null>(null);
   const [terminalHistory, setTerminalHistory] = useState<TerminalHistoryEntry[]>([]);
-  const [commandHistory, setCommandHistory] = useState<string[]>([]);
-  const [historyIndex, setHistoryIndex] = useState<number>(-1);
-  const [isTerminalFocused, setIsTerminalFocused] = useState<boolean>(true);
   const terminalContainerRef = useRef<HTMLDivElement | null>(null);
-  const terminalInputRef = useRef<HTMLInputElement | null>(null);
-  const [terminalInput, setTerminalInput] = useState<string>('');
-  const [interactiveSession, setInteractiveSession] = useState<{
-    active: boolean;
-    prompts: string[];
-    collectedInputs: string[];
-    currentStep: number;
-  }>({
-    active: false,
-    prompts: [],
-    collectedInputs: [],
-    currentStep: 0,
-  });
   const [copiedCode, setCopiedCode] = useState(false);
 
   // Timer HUD
@@ -191,7 +172,7 @@ export default function WorkspacePage({ params }: { params: Promise<{ id: string
     if (activeConsoleTab === 'terminal' && terminalContainerRef.current) {
       terminalContainerRef.current.scrollTop = terminalContainerRef.current.scrollHeight;
     }
-  }, [terminalHistory, isRunning, interactiveSession, activeConsoleTab]);
+  }, [terminalHistory, isRunning, activeConsoleTab]);
 
   const formatTimer = (totalSec: number) => {
     const mins = Math.floor(totalSec / 60);
@@ -278,13 +259,13 @@ export default function WorkspacePage({ params }: { params: Promise<{ id: string
               try {
                 const autoRes = await api.setupSchema(prob.code_id || problemParam, savedSchemaDraft, sId || undefined);
                 if (autoRes?.tables?.length > 0) setSchemaTables(autoRes.tables);
-              } catch (_) { /* silent — user can always re-run manually */ }
+              } catch { /* silent — user can always re-run manually */ }
             } else if (prob.setup_sql) {
               // Fall back to the challenge's own setup_sql if no saved draft
               try {
                 const autoRes = await api.setupSchema(prob.code_id || problemParam, prob.setup_sql, sId || undefined);
                 if (autoRes?.tables?.length > 0) setSchemaTables(autoRes.tables);
-              } catch (_) { /* silent */ }
+              } catch { /* silent */ }
             }
           }
         } catch (schemaErr) {
@@ -320,12 +301,13 @@ export default function WorkspacePage({ params }: { params: Promise<{ id: string
           persistence.getSolvedIds(),
         ]);
         const backendSolved = (chapters as ChapterGroup[]).flatMap((c) => c.levels).filter((l) => l.passed).map((l) => l.id);
-        // Combine backend solved, locally stored solved, and current solvedIds
-        const resolved = Array.from(new Set([...backendSolved, ...localSolved, ...solvedIds]));
-        setSolvedIds(resolved);
-        if (problem && (isProblemSolved(problem, resolved, (chapters as ChapterGroup[]).flatMap((c) => c.levels)) || Boolean(problem.passed))) {
-          stopTimer();
-        }
+        setSolvedIds((prev) => {
+          const resolved = Array.from(new Set([...backendSolved, ...localSolved, ...prev]));
+          if (problem && (isProblemSolved(problem, resolved, (chapters as ChapterGroup[]).flatMap((c) => c.levels)) || Boolean(problem.passed))) {
+            stopTimer();
+          }
+          return resolved;
+        });
       } catch (e) {
         console.error('Failed to sync user solved progress:', e);
       }
@@ -416,317 +398,12 @@ export default function WorkspacePage({ params }: { params: Promise<{ id: string
       ]);
     } finally {
       setIsRunning(false);
-      setInteractiveSession({ active: false, prompts: [], collectedInputs: [], currentStep: 0 });
-      setTimeout(() => {
-        terminalInputRef.current?.focus();
-      }, 60);
     }
   };
 
   const handleRunCode = async (overrideStdin?: string) => {
     if (!problem || isRunning || isSubmitting) return;
     await executeWithStdin(overrideStdin || '', 'sqlite3 query.sql');
-  };
-
-  const handleRunTestCases = async () => {
-    if (!problem || isRunning || isSubmitting) return;
-
-    try {
-      setIsRunning(true);
-      setConsoleCollapsed(false);
-      setActiveConsoleTab('tests');
-
-      const res = await api.runCode(problem?.code_id || problemParam, code, undefined, sessionId);
-      setRunResponse(res);
-      if (typeof window !== 'undefined' && window.innerWidth < 768) {
-        setMobileDrawerOpen(true);
-      }
-
-      const exitCode = res.success ? 0 : 1;
-      const duration = Math.round(res.execution_time_ms || 24);
-      setLastExecutionRuntime(duration);
-      const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-
-      const passedCount = res.test_results?.filter((t) => t.passed).length || 0;
-      const totalCount = res.test_results?.length || 0;
-      const testSummary = res.test_results && res.test_results.length > 0
-        ? `engine: SQLite v3.45 • relational_tests\ncollected ${totalCount} test suites\n\n` +
-          res.test_results.map((t) => `test_query.sql::test_suite_${t.test_case_index} ${t.passed ? 'PASSED' : 'FAILED'}${!t.passed && t.actual_output ? ` (got: ${t.actual_output.trim()})` : ''}`).join('\n') +
-          `\n\n============================== ${passedCount}/${totalCount} suites passed in ${(duration / 1000).toFixed(2)}s ==============================`
-        : (res.stdout || '');
-
-      setTerminalHistory((prev) => [
-        ...prev.slice(-25),
-        {
-          id: Math.random().toString(36).substring(7),
-          command: 'run_tests --engine sqlite --target query.sql',
-          stdin: undefined,
-          stdout: testSummary,
-          stderr: res.stderr || (res.security_error ? `[Security Error] ${res.security_error}` : ''),
-          exitCode,
-          durationMs: duration,
-          timestamp: timeStr,
-        },
-      ]);
-
-      if (!res.success || (res.test_results && res.test_results.some((t) => !t.passed))) {
-        soundFX.playFailureThud();
-      } else {
-        soundFX.playSuccessChime();
-      }
-    } catch (err: any) {
-      soundFX.playFailureThud();
-      setTerminalHistory((prev) => [
-        ...prev.slice(-25),
-        {
-          id: Math.random().toString(36).substring(7),
-          command: 'pytest tests/ -v',
-          stdin: undefined,
-          stdout: '',
-          stderr: `Execution error: ${err?.message || 'Failed to connect to runner'}.`,
-          exitCode: 1,
-          durationMs: 0,
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-        },
-      ]);
-    } finally {
-      setIsRunning(false);
-    }
-  };
-
-  const handleInteractiveInputSubmit = () => {
-    const currentVal = terminalInput;
-    const nextCollected = [...interactiveSession.collectedInputs, currentVal];
-    const nextStep = interactiveSession.currentStep + 1;
-
-    if (nextStep < interactiveSession.prompts.length) {
-      setInteractiveSession((prev) => ({
-        ...prev,
-        collectedInputs: nextCollected,
-        currentStep: nextStep,
-      }));
-      setTerminalInput('');
-    } else {
-      const promptsWithValues = interactiveSession.prompts.map((p, idx) => ({
-        prompt: p,
-        value: nextCollected[idx] || '',
-      }));
-      const fullStdin = nextCollected.join('\n');
-      setInteractiveSession({ active: false, prompts: [], collectedInputs: [], currentStep: 0 });
-      setTerminalInput('');
-      executeWithStdin(fullStdin, 'sqlite3 query.sql', promptsWithValues);
-    }
-  };
-
-  const handleTerminalCommandSubmit = () => {
-    const trimmed = terminalInput.trim();
-    setTerminalInput('');
-
-    if (trimmed) {
-      setCommandHistory((prev) => [...prev, trimmed]);
-      setHistoryIndex(-1);
-    }
-
-    if (!trimmed) {
-      handleRunCode();
-      return;
-    }
-
-    const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-
-    if (trimmed === 'clear' || trimmed === 'cls') {
-      setTerminalHistory([]);
-      return;
-    }
-
-    if (trimmed === 'pwd') {
-      setTerminalHistory((prev) => [
-        ...prev,
-        {
-          id: Math.random().toString(36).substring(7),
-          command: trimmed,
-          stdout: '~/SQL',
-          stderr: '',
-          exitCode: 0,
-          durationMs: 4,
-          timestamp: timeStr,
-        },
-      ]);
-      return;
-    }
-
-    if (trimmed === 'whoami') {
-      setTerminalHistory((prev) => [
-        ...prev,
-        {
-          id: Math.random().toString(36).substring(7),
-          command: trimmed,
-          stdout: 'developer',
-          stderr: '',
-          exitCode: 0,
-          durationMs: 3,
-          timestamp: timeStr,
-        },
-      ]);
-      return;
-    }
-
-    if (trimmed === 'ls' || trimmed === 'dir') {
-      setTerminalHistory((prev) => [
-        ...prev,
-        {
-          id: Math.random().toString(36).substring(7),
-          command: trimmed,
-          stdout: 'solution.sql   test_cases.py   README.md',
-          stderr: '',
-          exitCode: 0,
-          durationMs: 6,
-          timestamp: timeStr,
-        },
-      ]);
-      return;
-    }
-
-    if (trimmed === 'sqlite3 --version' || trimmed === 'sql --version') {
-      setTerminalHistory((prev) => [
-        ...prev,
-        {
-          id: Math.random().toString(36).substring(7),
-          command: trimmed,
-          stdout: 'SQLite 3.45.3',
-          stderr: '',
-          exitCode: 0,
-          durationMs: 8,
-          timestamp: timeStr,
-        },
-      ]);
-      return;
-    }
-
-    if (trimmed === 'date') {
-      setTerminalHistory((prev) => [
-        ...prev,
-        {
-          id: Math.random().toString(36).substring(7),
-          command: trimmed,
-          stdout: new Date().toString(),
-          stderr: '',
-          exitCode: 0,
-          durationMs: 3,
-          timestamp: timeStr,
-        },
-      ]);
-      return;
-    }
-
-    if (trimmed.startsWith('echo ')) {
-      const echoText = trimmed.replace(/^echo\s+/, '').replace(/^["']|["']$/g, '');
-      setTerminalHistory((prev) => [
-        ...prev,
-        {
-          id: Math.random().toString(36).substring(7),
-          command: trimmed,
-          stdout: echoText,
-          stderr: '',
-          exitCode: 0,
-          durationMs: 3,
-          timestamp: timeStr,
-        },
-      ]);
-      return;
-    }
-
-    if (trimmed === 'help') {
-      setTerminalHistory((prev) => [
-        ...prev,
-        {
-          id: Math.random().toString(36).substring(7),
-          command: 'help',
-          stdout: `VS Code Terminal Commands:\n  sqlite3 query.sql     Execute ANSI SQL query in isolated SQLite engine\n  pytest                  Run test cases\n  clear                   Clear terminal scrollback (Ctrl+L)\n  pwd, ls, whoami, echo   Standard shell utilities\n  <value>                 Pass input directly to script stdin`,
-          stderr: '',
-          exitCode: 0,
-          durationMs: 0,
-          timestamp: timeStr,
-        },
-      ]);
-      return;
-    }
-
-    if (trimmed === 'pytest' || trimmed === 'pytest tests/' || trimmed === 'test') {
-      handleRunTestCases();
-      return;
-    }
-
-    if (trimmed === 'sql' || trimmed === 'sqlite' || trimmed === 'run') {
-      handleRunCode();
-      return;
-    }
-
-    if (trimmed.startsWith('sqlite3 query.sql') || trimmed.startsWith('sqlite3 query.sql')) {
-      const customArg = trimmed.replace(/^sqlite3?\s+solution\.sql\s*/, '').trim();
-      if (customArg) {
-        executeWithStdin(customArg, trimmed);
-      } else {
-        handleRunCode();
-      }
-      return;
-    }
-
-    // Treat arbitrary input typed at prompt as custom stdin
-    executeWithStdin(trimmed, `sqlite3 query.sql << '${trimmed}'`);
-  };
-
-  const handleTerminalKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      if (commandHistory.length === 0) return;
-      const nextIndex = historyIndex + 1;
-      if (nextIndex < commandHistory.length) {
-        setHistoryIndex(nextIndex);
-        setTerminalInput(commandHistory[commandHistory.length - 1 - nextIndex]);
-      }
-      return;
-    }
-
-    if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      if (historyIndex > 0) {
-        const nextIndex = historyIndex - 1;
-        setHistoryIndex(nextIndex);
-        setTerminalInput(commandHistory[commandHistory.length - 1 - nextIndex]);
-      } else if (historyIndex === 0) {
-        setHistoryIndex(-1);
-        setTerminalInput('');
-      }
-      return;
-    }
-
-    if (e.ctrlKey && (e.key === 'l' || e.key === 'L')) {
-      e.preventDefault();
-      setTerminalHistory([]);
-      return;
-    }
-
-    if (e.key === 'Escape' || (e.ctrlKey && (e.key === 'c' || e.key === 'C'))) {
-      e.preventDefault();
-      if (interactiveSession.active) {
-        setInteractiveSession({ active: false, prompts: [], collectedInputs: [], currentStep: 0 });
-        setTerminalInput('');
-        const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-        setTerminalHistory((prev) => [
-          ...prev.slice(-25),
-          {
-            id: Math.random().toString(36).substring(7),
-            command: 'sqlite3 query.sql',
-            stdout: '^C',
-            stderr: '',
-            exitCode: 130,
-            durationMs: 0,
-            timestamp: timeStr,
-          },
-        ]);
-      }
-    }
   };
 
   // 7. Submit Code Pipeline with Mission Complete Celebration
@@ -818,7 +495,6 @@ export default function WorkspacePage({ params }: { params: Promise<{ id: string
       if (res.success) {
         soundFX.playSuccessChime();
         setSchemaTables(res.tables || []);
-        setSetupFeedback({ success: true, message: res.message });
 
         const tablesSummary = (res.tables || [])
           .map((t) => `✓ ${t.name} (${t.columns.length} columns, ${t.row_count} rows)`)
@@ -843,7 +519,6 @@ export default function WorkspacePage({ params }: { params: Promise<{ id: string
         }, 1100);
       } else {
         soundFX.playFailureThud();
-        setSetupFeedback({ success: false, message: res.error || 'Failed to setup database tables.' });
 
         setTerminalHistory((prev) => [
           ...prev.slice(-25),
@@ -891,7 +566,6 @@ export default function WorkspacePage({ params }: { params: Promise<{ id: string
         setSchemaCode(defaultSql);
         await persistence.saveDraft(targetCodeId, defaultSql, 'schema');
         setSchemaTables([]);
-        setSetupFeedback(null);
         soundFX.playLockBreak();
 
         const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -960,17 +634,24 @@ export default function WorkspacePage({ params }: { params: Promise<{ id: string
     persistence.saveDraft(targetCodeId, defaultSolutionCode, 'solution');
   };
 
+  const handleRunSetupRef = useRef(handleRunSetup);
+  handleRunSetupRef.current = handleRunSetup;
+  const handleRunCodeRef = useRef(handleRunCode);
+  handleRunCodeRef.current = handleRunCode;
+  const handleSubmitCodeRef = useRef(handleSubmitCode);
+  handleSubmitCodeRef.current = handleSubmitCode;
+
   // Keyboard Shortcuts
   useEffect(() => {
     const unregister = registerGlobalShortcuts({
       onRun: () => {
         if (activeEditorTab === 'schema') {
-          handleRunSetup();
+          handleRunSetupRef.current();
         } else {
-          handleRunCode();
+          handleRunCodeRef.current();
         }
       },
-      onSubmit: handleSubmitCode,
+      onSubmit: () => handleSubmitCodeRef.current(),
       onToggleConsole: () => setConsoleCollapsed((p) => !p),
       onOpenCommandPalette: () => setCommandPaletteOpen(true),
     });
@@ -987,7 +668,7 @@ export default function WorkspacePage({ params }: { params: Promise<{ id: string
       unregister();
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [activeEditorTab, handleRunSetup, handleRunCode, handleSubmitCode]);
+  }, [activeEditorTab]);
 
   const currentIndex = allProblems.findIndex(
     (p) =>

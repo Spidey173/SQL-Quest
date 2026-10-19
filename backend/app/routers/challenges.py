@@ -7,11 +7,10 @@ from app.database import get_db
 from app.models import Challenge, UserProgress, User
 from app.schemas import ChapterGroup, ChallengeSummary, ChallengeDetail, TestCaseSchema
 from app.security import get_current_user_optional
+from app.cache import cache
+from app.crud import resolve_challenge
 
 router = APIRouter(prefix="/challenges", tags=["Challenges"])
-
-
-from app.cache import cache
 
 # In-memory pre-computed public chapters cache
 _PUBLIC_CHAPTERS_CACHE: List[ChapterGroup] = []
@@ -121,9 +120,6 @@ async def list_chapters(
         _PUBLIC_CHAPTERS_CACHE = response
 
     return response
-
-
-from app.crud import resolve_challenge
 
 
 @router.get("/{level_id}", response_model=ChallengeDetail)

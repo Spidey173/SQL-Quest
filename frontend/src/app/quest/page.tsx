@@ -338,7 +338,7 @@ function CurriculumExplorerContent() {
             {/* Difficulty Dropdown */}
             <select
               value={difficultyFilter}
-              onChange={(e) => setDifficultyFilter(e.target.value as any)}
+              onChange={(e) => setDifficultyFilter(e.target.value as 'all' | 'easy' | 'medium' | 'hard')}
               className="h-8 px-2 font-mono bg-[#0E0E0E] border border-[#242424] rounded-[4px] text-xs text-[#B0B0B0] outline-none cursor-pointer"
             >
               <option value="all">DIFFICULTY</option>
@@ -350,7 +350,7 @@ function CurriculumExplorerContent() {
             {/* Status Dropdown */}
             <select
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value as any)}
+              onChange={(e) => setStatusFilter(e.target.value as 'all' | 'solved' | 'unsolved')}
               className="h-8 px-2 font-mono bg-[#0E0E0E] border border-[#242424] rounded-[4px] text-xs text-[#B0B0B0] outline-none cursor-pointer"
             >
               <option value="all">STATUS</option>

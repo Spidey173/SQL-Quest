@@ -1,7 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
-import uuid
 
 from app.database import get_db
 from app.models import User, UserProgress, Submission

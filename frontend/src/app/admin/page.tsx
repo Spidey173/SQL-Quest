@@ -39,7 +39,29 @@ export default function AdminDashboardPage() {
   };
 
   useEffect(() => {
-    loadData();
+    let mounted = true;
+    async function init() {
+      try {
+        const [m, u, c] = await Promise.all([
+          api.getAdminMetrics().catch(() => null),
+          api.getAdminUsers().catch(() => []),
+          api.getChapters().catch(() => []),
+        ]);
+        if (mounted) {
+          if (m) setMetrics(m);
+          setUsersList(u);
+          setChapters(c);
+          setLoading(false);
+        }
+      } catch (err) {
+        console.error('Failed to load admin data:', err);
+        if (mounted) setLoading(false);
+      }
+    }
+    init();
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   const handleAdjustUser = async (userId: number, updates: Partial<User>) => {
@@ -61,6 +83,7 @@ export default function AdminDashboardPage() {
           <div>
             <div className="inline-flex items-center gap-2 text-xs font-bold text-violet-400 font-mono uppercase mb-1">
               <Shield className="h-4 w-4" /> Cyber Control Center
+              {loading && <span className="ml-2 text-violet-400 font-mono text-[11px] animate-pulse">Syncing...</span>}
             </div>
             <h1 className="text-3xl font-black text-white">Mainframe Administration</h1>
             <p className="text-xs text-zinc-400">
@@ -239,7 +262,7 @@ export default function AdminDashboardPage() {
                           <div className="flex items-center justify-end gap-1.5 font-sans">
                             {u.role !== 'admin' ? (
                               <button
-                                onClick={() => handleAdjustUser(u.id, { role: 'admin' as any })}
+                                onClick={() => handleAdjustUser(u.id, { role: 'admin' })}
                                 className="rounded bg-violet-500/20 border border-violet-500/40 px-2 py-0.5 text-[10px] font-bold text-violet-300 hover:bg-violet-500/40"
                                 title="Promote to Admin"
                               >
@@ -247,7 +270,7 @@ export default function AdminDashboardPage() {
                               </button>
                             ) : (
                               <button
-                                onClick={() => handleAdjustUser(u.id, { role: 'user' as any })}
+                                onClick={() => handleAdjustUser(u.id, { role: 'user' })}
                                 className="rounded bg-zinc-800 border border-zinc-700 px-2 py-0.5 text-[10px] font-bold text-zinc-300 hover:bg-zinc-700"
                                 title="Set to Standard User"
                               >
