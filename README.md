@@ -1,6 +1,6 @@
 # ⚡ SQL Quest — 100 Relational Database & SQL Masterclass Platform
 
-[![Live Demo](https://img.shields.io/badge/Live%20Demo-sql__quest17.vercel.app-FF6B00?style=for-the-badge&logo=vercel&logoColor=white)](https://sql_quest17.vercel.app)
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-sqlquest17.vercel.app-FF6B00?style=for-the-badge&logo=vercel&logoColor=white)](https://sqlquest17.vercel.app)
 [![API Status](https://img.shields.io/badge/API-sql--quest--backend.vercel.app-238636?style=for-the-badge&logo=fastapi&logoColor=white)](https://sql-quest-backend.vercel.app/health)
 [![Next.js 16](https://img.shields.io/badge/Next.js-16-black?style=flat&logo=next.js)](https://nextjs.org/)
 [![React 19](https://img.shields.io/badge/React-19-61DAFB?style=flat&logo=react)](https://react.dev/)
@@ -18,7 +18,7 @@ The platform is fully deployed and available online:
 
 | Service | Endpoint | Description |
 | :--- | :--- | :--- |
-| **Frontend Web App** | [https://sql_quest17.vercel.app](https://sql_quest17.vercel.app) | Production Next.js 16 UI with Monaco SQL Editor |
+| **Frontend Web App** | [https://sqlquest17.vercel.app](https://sqlquest17.vercel.app) | Production Next.js 16 UI with Monaco SQL Editor |
 | **Backend REST API** | [https://sql-quest-backend.vercel.app](https://sql-quest-backend.vercel.app) | High-performance FastAPI serverless engine |
 | **Interactive API Docs** | [https://sql-quest-backend.vercel.app/docs](https://sql-quest-backend.vercel.app/docs) | Swagger UI for exploring and testing API endpoints |
 | **Health Check** | [https://sql-quest-backend.vercel.app/health](https://sql-quest-backend.vercel.app/health) | Live backend and Neon database connectivity telemetry |
