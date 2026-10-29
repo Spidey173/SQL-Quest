@@ -148,7 +148,10 @@ async def get_user_submissions(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Fetch user's submission history for accurate client-side telemetry."""
+    """Fetch user's submission history and completed challenges for accurate client-side telemetry."""
+    from datetime import datetime, timezone
+    from app.models import utcnow
+
     sub_res = await db.execute(
         select(Submission, Challenge)
         .join(Challenge, Submission.challenge_id == Challenge.id)
@@ -157,8 +160,15 @@ async def get_user_submissions(
         .limit(200)
     )
     results = []
+    seen_passed_challenges = set()
+
     for s, ch in sub_res.all():
-        ts = int(s.created_at.timestamp() * 1000) if s.created_at else int(time.time() * 1000)
+        if s.created_at:
+            dt_utc = s.created_at.replace(tzinfo=timezone.utc) if s.created_at.tzinfo is None else s.created_at
+            ts = int(dt_utc.timestamp() * 1000)
+        else:
+            ts = int(time.time() * 1000)
+
         results.append({
             "id": f"sub_{s.id}",
             "problemId": ch.code_id or ch.level_number or ch.id,
@@ -169,5 +179,33 @@ async def get_user_submissions(
             "timestamp": ts,
             "code": s.code
         })
+        if s.status == "PASSED":
+            seen_passed_challenges.add(ch.id)
+
+    # Cross-reference with UserProgress to guarantee any verified solved challenge is included
+    prog_res = await db.execute(
+        select(UserProgress, Challenge)
+        .join(Challenge, UserProgress.challenge_id == Challenge.id)
+        .where(UserProgress.user_id == current_user.id, UserProgress.passed == True)
+    )
+    for p, ch in prog_res.all():
+        if ch.id not in seen_passed_challenges:
+            comp_dt = p.completed_at or utcnow()
+            dt_utc = comp_dt.replace(tzinfo=timezone.utc) if comp_dt.tzinfo is None else comp_dt
+            ts = int(dt_utc.timestamp() * 1000)
+            results.append({
+                "id": f"prog_{p.id}",
+                "problemId": ch.code_id or ch.level_number or ch.id,
+                "code_id": ch.code_id,
+                "problemTitle": ch.title,
+                "passed": True,
+                "runtimeMs": int(p.best_time_ms) if p.best_time_ms else 14,
+                "timestamp": ts,
+                "code": p.code_submitted or "-- Verified solve"
+            })
+            seen_passed_challenges.add(ch.id)
+
+    # Sort descending by timestamp
+    results.sort(key=lambda x: x["timestamp"], reverse=True)
     return results
 

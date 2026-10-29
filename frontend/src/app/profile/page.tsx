@@ -16,7 +16,7 @@ import { ChapterGroup } from '@/lib/types';
 import {
   User, CheckCircle2, Flame, Clock,
   Layers, ArrowRight, BarChart2,
-  Check, Zap, Activity, ChevronRight, ChevronLeft
+  Check, Zap, Activity, ChevronRight, ChevronLeft, Info
 } from 'lucide-react';
 
 // Circular Radial Progress Ring for Whole Completion in Magma / Industrial Orange
@@ -110,11 +110,14 @@ export default function TelemetryPage() {
         }
 
         let mergedSubs: SubmissionLogEntry[] = [];
-        if (user) {
-          mergedSubs = (remoteSubs || []).slice().sort((a, b) => b.timestamp - a.timestamp);
-        } else {
-          mergedSubs = (localSubs || []).slice().sort((a, b) => b.timestamp - a.timestamp);
+        const allSubsMap = new Map<string, SubmissionLogEntry>();
+        for (const s of (localSubs || [])) {
+          allSubsMap.set(`${s.problemId}_${new Date(s.timestamp).toDateString()}`, s);
         }
+        for (const s of (remoteSubs || [])) {
+          allSubsMap.set(`${s.problemId}_${new Date(s.timestamp).toDateString()}`, s);
+        }
+        mergedSubs = Array.from(allSubsMap.values()).sort((a, b) => b.timestamp - a.timestamp);
 
         setChapters(chaps);
         setSolvedIds(Array.from(solvedCanonicalSet));
@@ -207,7 +210,41 @@ export default function TelemetryPage() {
   }, [allProblems, solvedIds]);
 
   // 2. Daily Problem-Solving Velocity Analytics (Scrollable Timeline)
-  const [daysRange, setDaysRange] = useState<14 | 30 | 60>(30);
+  const [daysRange, setDaysRange] = useState<14 | 30 | 60 | 90>(30);
+  const autoAdjustedRef = React.useRef(false);
+
+  // Auto-detect optimal range so past solves are immediately visible
+  useEffect(() => {
+    if (!autoAdjustedRef.current && submissions.length > 0) {
+      autoAdjustedRef.current = true;
+      const latestTs = Math.max(...submissions.map((s) => s.timestamp));
+      const daysAgo = Math.floor((Date.now() - latestTs) / (1000 * 60 * 60 * 24));
+      if (daysAgo >= 30 && daysAgo < 60) {
+        setDaysRange(60);
+      } else if (daysAgo >= 60) {
+        setDaysRange(90);
+      }
+    }
+  }, [submissions]);
+
+  const lastActiveInfo = useMemo(() => {
+    if (!submissions.length) return null;
+    const sorted = submissions.slice().sort((a, b) => b.timestamp - a.timestamp);
+    const latest = sorted[0];
+    const latestDate = new Date(latest.timestamp);
+    const daysAgo = Math.floor((Date.now() - latest.timestamp) / (1000 * 60 * 60 * 24));
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    let suggested: 14 | 30 | 60 | 90 = 30;
+    if (daysAgo >= 30 && daysAgo < 60) suggested = 60;
+    else if (daysAgo >= 60) suggested = 90;
+
+    return {
+      dateFormatted: `${months[latestDate.getMonth()]} ${latestDate.getDate()}, ${latestDate.getFullYear()}`,
+      daysAgo,
+      suggestedRange: suggested,
+    };
+  }, [submissions]);
+
   const [selectedDay, setSelectedDay] = useState<{
     date: string;
     dayLabel: string;
@@ -267,10 +304,24 @@ export default function TelemetryPage() {
     };
   }, [submissions, daysRange, allProblems]);
 
-  // Auto-scroll to the right (Today) on mount and on range change
+  // Auto-scroll to center on active days or Today on mount / range change
   useEffect(() => {
-    if (scrollContainerRef.current) {
+    if (!scrollContainerRef.current) return;
+    const days = recentDaysAnalytics.days;
+    let lastActiveIdx = -1;
+    for (let i = days.length - 1; i >= 0; i--) {
+      if (days[i].solvedCount > 0 || days[i].totalRuns > 0) {
+        lastActiveIdx = i;
+        break;
+      }
+    }
+    // If activity is recent (within last 8 days of range) or no activity, scroll to far right (Today)
+    if (lastActiveIdx === -1 || (days.length - 1 - lastActiveIdx) <= 8) {
       scrollContainerRef.current.scrollLeft = scrollContainerRef.current.scrollWidth;
+    } else {
+      // Activity is further back in range, scroll to reveal the active bars in view
+      const targetScroll = Math.max(0, (lastActiveIdx * 62) - 180);
+      scrollContainerRef.current.scrollTo({ left: targetScroll, behavior: 'smooth' });
     }
   }, [daysRange, recentDaysAnalytics]);
 
@@ -517,7 +568,7 @@ export default function TelemetryPage() {
             <div className="flex items-center gap-3 flex-wrap">
               {/* Range Selector */}
               <div className="flex items-center rounded-[4px] bg-[#0E0E0E] border border-[#242424] p-0.5 text-xs font-mono">
-                {([14, 30, 60] as const).map((r) => (
+                {([14, 30, 60, 90] as const).map((r) => (
                   <button
                     key={r}
                     type="button"
@@ -533,7 +584,7 @@ export default function TelemetryPage() {
                 ))}
               </div>
 
-              {/* Left / Right Scroll Buttons (shown for 30D and 60D scroll views) */}
+              {/* Left / Right Scroll Buttons (shown for scrollable views) */}
               {daysRange !== 14 && (
                 <div className="flex items-center gap-1">
                   <button
@@ -566,6 +617,28 @@ export default function TelemetryPage() {
               </div>
             </div>
           </div>
+
+          {/* Activity Notice if current window has 0 solves but user has past solves */}
+          {recentDaysAnalytics.totalSolves === 0 && lastActiveInfo && (
+            <div className="flex items-center justify-between text-xs px-3.5 py-2.5 rounded-[4px] bg-[#161616] border border-[#2A2A2A] text-[#888888] font-mono">
+              <div className="flex items-center gap-2">
+                <Info className="h-3.5 w-3.5 text-[#FF6B00] shrink-0" />
+                <span>
+                  No solves recorded in the last {daysRange} days. Last active on{' '}
+                  <strong className="text-white">{lastActiveInfo.dateFormatted}</strong> ({lastActiveInfo.daysAgo}d ago).
+                </span>
+              </div>
+              {daysRange < lastActiveInfo.suggestedRange && (
+                <button
+                  type="button"
+                  onClick={() => setDaysRange(lastActiveInfo.suggestedRange)}
+                  className="text-[#FF6B00] hover:text-white font-semibold flex items-center gap-1 cursor-pointer transition-colors"
+                >
+                  View in {lastActiveInfo.suggestedRange}D →
+                </button>
+              )}
+            </div>
+          )}
 
           {/* Selected Day Floating Inspector */}
           {selectedDay && (
