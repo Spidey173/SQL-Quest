@@ -127,3 +127,17 @@ class Submission(Base):
     challenge = relationship("Challenge", back_populates="submissions")
 
 
+class SandboxSession(Base):
+    """
+    Stores user SQLite in-memory database dumps across serverless Vercel workers,
+    ensuring student practice sessions and custom schemas persist without state loss.
+    """
+    __tablename__ = "sandbox_sessions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    session_key = Column(String(128), unique=True, index=True, nullable=False)
+    dump_sql = Column(Text, nullable=False)
+    updated_at = Column(DateTime, default=utcnow, onupdate=utcnow, nullable=False)
+
+
+

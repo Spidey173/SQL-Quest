@@ -2,8 +2,12 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Optional, Any
+import re
+import sqlite3
+import time
 
+from app.config import settings
 from app.database import get_db
 from app.models import Challenge, User, UserProgress, Submission
 from app.schemas import (
@@ -14,25 +18,45 @@ from app.schemas import (
 from app.security import get_current_user, get_current_user_optional
 from app.crud import resolve_challenge
 from app.cache import cache
-from app.sandbox.sql_runner import execute_sql_in_sandbox
+from app.sandbox.sql_runner import execute_sql_in_sandbox, sqlite_security_authorizer
 from app.sandbox.evaluator import evaluate_challenge_test_cases
 from app.sandbox.schema_manager import (
     inspect_sqlite_connection, validate_schema_against_expected,
     get_relevant_tables_for_challenge, generate_setup_sql_for_challenge,
-    get_baseline_tables_for_challenge, USER_DB_SESSIONS
+    get_baseline_tables_for_challenge, USER_DB_SESSIONS,
+    get_session_dump, save_session_dump, delete_session_dump
 )
-import sqlite3
-import time
 
 router = APIRouter(prefix="/execution", tags=["Execution & Sandbox"])
 
 
+def resolve_session_key(session_id: Optional[str], challenge_id: Any, current_user: Optional[User]) -> str:
+    """
+    Resolves an isolated, secure session namespace:
+    - Logged-in user: usr_{current_user.id}_{challenge_id} (eliminates IDOR/session hijacking)
+    - Guest with browser session: guest_{sanitized_id}_{challenge_id}
+    - Anonymous fallback: guest_anon_{challenge_id}
+    """
+    cid = str(challenge_id)
+    if current_user and getattr(current_user, "id", None):
+        return f"usr_{current_user.id}_{cid}"
+    if session_id:
+        clean = re.sub(r"[^a-zA-Z0-9_\-]", "", str(session_id).strip())[:64]
+        if clean and clean.lower() != "default":
+            return f"guest_{clean}_{cid}"
+    return f"guest_anon_{cid}"
+
+
 @router.post("/setup-schema", response_model=SchemaSetupResponse)
-async def setup_schema(req: SchemaSetupRequest, db: AsyncSession = Depends(get_db)):
+async def setup_schema(
+    req: SchemaSetupRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: Optional[User] = Depends(get_current_user_optional)
+):
     """
     Executes user DDL/DML schema setup script (CREATE TABLE, INSERT INTO, etc.)
-    Validates against challenge expected tables, serializes database state to user session,
-    and returns rich metadata with table definitions, row counts, and sample data.
+    with sandbox security authorizer and strict execution timeout.
+    Persists database state across multi-instance Vercel serverless workers.
     """
     start_time = time.perf_counter()
     ch = await resolve_challenge(db, req.challenge_id)
@@ -49,6 +73,17 @@ async def setup_schema(req: SchemaSetupRequest, db: AsyncSession = Depends(get_d
 
     # In-memory execution — restore existing session first (append mode)
     conn = sqlite3.connect(":memory:")
+    # Attach security authorizer and execution timeout
+    conn.set_authorizer(sqlite_security_authorizer)
+    timeout_sec = getattr(settings, "SANDBOX_TIMEOUT_SECONDS", 3.0)
+    deadline = time.perf_counter() + timeout_sec
+
+    def timeout_check():
+        if time.perf_counter() > deadline:
+            return 1
+        return 0
+
+    conn.set_progress_handler(timeout_check, 1000)
     cursor = conn.cursor()
 
     try:
@@ -58,8 +93,8 @@ async def setup_schema(req: SchemaSetupRequest, db: AsyncSession = Depends(get_d
         cursor.executescript(SAMPLE_DATA)
 
         # Append mode: restore previous session tables and execute user script
-        session_key = f"{req.session_id or 'default'}_{ch.id}"
-        existing_dump = USER_DB_SESSIONS.get(session_key)
+        session_key = resolve_session_key(req.session_id, ch.id, current_user)
+        existing_dump = await get_session_dump(db, session_key)
         if existing_dump:
             cursor.executescript(existing_dump)
 
@@ -71,11 +106,11 @@ async def setup_schema(req: SchemaSetupRequest, db: AsyncSession = Depends(get_d
         expected_tables = get_relevant_tables_for_challenge(ch.title, ch.objective, ch.starter_code)
         valid, hint_note = validate_schema_against_expected(actual_table_names, expected_tables)
 
-        # Dump DB for session persistence
+        # Dump DB for session persistence across serverless workers
         dump_lines = list(conn.iterdump())
         dump_sql = "\n".join(dump_lines)
 
-        USER_DB_SESSIONS[session_key] = dump_sql
+        await save_session_dump(db, session_key, dump_sql)
 
         total_rows = sum(t["row_count"] for t in tables_info)
         elapsed_ms = round((time.perf_counter() - start_time) * 1000, 2)
@@ -92,6 +127,32 @@ async def setup_schema(req: SchemaSetupRequest, db: AsyncSession = Depends(get_d
             execution_time_ms=elapsed_ms
         )
 
+    except sqlite3.OperationalError as err:
+        elapsed_ms = round((time.perf_counter() - start_time) * 1000, 2)
+        err_msg = str(err)
+        if "interrupted" in err_msg.lower():
+            err_msg = f"Schema Setup Timed Out: Execution exceeded {timeout_sec}s limit."
+        elif "not authorized" in err_msg.lower():
+            err_msg = "Security Policy: Restricted SQL operation blocked for sandbox safety."
+        return SchemaSetupResponse(
+            success=False,
+            message="DDL / SQL Execution Error",
+            error=err_msg,
+            tables=[],
+            execution_time_ms=elapsed_ms
+        )
+    except sqlite3.DatabaseError as err:
+        elapsed_ms = round((time.perf_counter() - start_time) * 1000, 2)
+        err_msg = str(err)
+        if "not authorized" in err_msg.lower():
+            err_msg = "Security Policy: Restricted SQL operation blocked for sandbox safety."
+        return SchemaSetupResponse(
+            success=False,
+            message="Database Error",
+            error=err_msg,
+            tables=[],
+            execution_time_ms=elapsed_ms
+        )
     except sqlite3.Error as err:
         elapsed_ms = round((time.perf_counter() - start_time) * 1000, 2)
         return SchemaSetupResponse(
@@ -115,17 +176,21 @@ async def setup_schema(req: SchemaSetupRequest, db: AsyncSession = Depends(get_d
 
 
 @router.post("/reset-schema")
-async def reset_schema(req: SchemaSetupRequest, db: AsyncSession = Depends(get_db)):
+async def reset_schema(
+    req: SchemaSetupRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: Optional[User] = Depends(get_current_user_optional)
+):
     """
-    Clears custom user session DB for this challenge and returns original baseline setup SQL.
+    Clears custom user session DB for this challenge across memory and database,
+    and returns original baseline setup SQL.
     """
     ch = await resolve_challenge(db, req.challenge_id)
     if not ch:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Challenge not found")
 
-    session_key = f"{req.session_id or 'default'}_{ch.id}"
-    if session_key in USER_DB_SESSIONS:
-        del USER_DB_SESSIONS[session_key]
+    session_key = resolve_session_key(req.session_id, ch.id, current_user)
+    await delete_session_dump(db, session_key)
 
     default_setup = generate_setup_sql_for_challenge(ch.title, ch.objective, ch.starter_code)
     return {
@@ -139,18 +204,19 @@ async def reset_schema(req: SchemaSetupRequest, db: AsyncSession = Depends(get_d
 async def get_session_schema(
     challenge_id: str,
     session_id: Optional[str] = None,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: Optional[User] = Depends(get_current_user_optional)
 ):
     """
     Returns active session tables if the user has created tables via DDL,
-    otherwise returns empty tables list so only user-created tables are shown.
+    otherwise returns baseline tables for this challenge.
     """
     ch = await resolve_challenge(db, challenge_id)
     if not ch:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Challenge not found")
 
-    session_key = f"{session_id or 'default'}_{ch.id}"
-    session_dump = USER_DB_SESSIONS.get(session_key)
+    session_key = resolve_session_key(session_id, ch.id, current_user)
+    session_dump = await get_session_dump(db, session_key)
 
     if not session_dump:
         baseline_tables = get_baseline_tables_for_challenge(ch.title, ch.objective, ch.starter_code, ch.story)
@@ -160,6 +226,7 @@ async def get_session_schema(
         }
 
     conn = sqlite3.connect(":memory:")
+    conn.set_authorizer(sqlite_security_authorizer)
     try:
         conn.cursor().executescript(session_dump)
         tables_info = inspect_sqlite_connection(conn)
@@ -183,13 +250,17 @@ async def get_session_schema(
 
 
 @router.post("/run", response_model=CodeRunResponse)
-async def run_query(req: CodeRunRequest, db: AsyncSession = Depends(get_db)):
+async def run_query(
+    req: CodeRunRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: Optional[User] = Depends(get_current_user_optional)
+):
     ch = await resolve_challenge(db, req.challenge_id)
     if not ch:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Challenge not found")
 
-    session_key = f"{req.session_id or 'default'}_{ch.id}"
-    session_dump = USER_DB_SESSIONS.get(session_key)
+    session_key = resolve_session_key(req.session_id, ch.id, current_user)
+    session_dump = await get_session_dump(db, session_key)
 
     # If no custom session, auto-seed from the challenge's own setup SQL (cached)
     if not session_dump:
@@ -266,8 +337,8 @@ async def submit_query(
     if not ch:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Challenge not found")
 
-    session_key = f"{req.session_id or 'default'}_{ch.id}"
-    session_dump = USER_DB_SESSIONS.get(session_key)
+    session_key = resolve_session_key(req.session_id, ch.id, current_user)
+    session_dump = await get_session_dump(db, session_key)
 
     # If no custom session, auto-seed from the challenge's own setup SQL (cached)
     if not session_dump:

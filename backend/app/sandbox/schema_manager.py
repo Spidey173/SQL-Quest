@@ -213,10 +213,93 @@ class SessionManager:
         except Exception:
             pass
 
+    def __delitem__(self, key: str):
+        self._memory.pop(key, None)
+        try:
+            p = self._path(key)
+            if os.path.exists(p):
+                os.remove(p)
+        except Exception:
+            pass
+
     def __contains__(self, key: str) -> bool:
         return self.get(key) is not None
 
 USER_DB_SESSIONS = SessionManager()
+
+
+async def get_session_dump(db: Optional[Any], key: str) -> Optional[str]:
+    """
+    Retrieves user database session dump across 3 tiers:
+    1. Fast in-memory process cache (<0.1ms)
+    2. Shared database persistence (enables state across multi-instance Vercel serverless workers)
+    3. Ephemeral local filesystem cache
+    """
+    if key in USER_DB_SESSIONS._memory:
+        return USER_DB_SESSIONS._memory[key]
+
+    if db:
+        try:
+            from app.models import SandboxSession
+            from sqlalchemy import select
+            stmt = select(SandboxSession.dump_sql).where(SandboxSession.session_key == key)
+            res = await db.execute(stmt)
+            dump_val = res.scalar_one_or_none()
+            if dump_val:
+                USER_DB_SESSIONS._memory[key] = dump_val
+                return dump_val
+        except Exception:
+            pass
+
+    return USER_DB_SESSIONS.get(key)
+
+
+async def save_session_dump(db: Optional[Any], key: str, dump_sql: str):
+    """Saves session dump to local memory and shared database for persistent Vercel availability."""
+    USER_DB_SESSIONS[key] = dump_sql
+
+    if db:
+        try:
+            from app.models import SandboxSession, utcnow
+            from sqlalchemy import select
+            stmt = select(SandboxSession).where(SandboxSession.session_key == key)
+            res = await db.execute(stmt)
+            existing = res.scalar_one_or_none()
+            if existing:
+                existing.dump_sql = dump_sql
+                existing.updated_at = utcnow()
+            else:
+                new_session = SandboxSession(session_key=key, dump_sql=dump_sql, updated_at=utcnow())
+                db.add(new_session)
+            await db.commit()
+        except Exception:
+            try:
+                await db.rollback()
+            except Exception:
+                pass
+
+
+async def delete_session_dump(db: Optional[Any], key: str):
+    """Evicts session dump from memory, filesystem, and database."""
+    if key in USER_DB_SESSIONS:
+        try:
+            del USER_DB_SESSIONS[key]
+        except Exception:
+            pass
+
+    if db:
+        try:
+            from app.models import SandboxSession
+            from sqlalchemy import delete
+            stmt = delete(SandboxSession).where(SandboxSession.session_key == key)
+            await db.execute(stmt)
+            await db.commit()
+        except Exception:
+            try:
+                await db.rollback()
+            except Exception:
+                pass
+
 
 def get_relevant_tables_for_challenge(title: str, objective: str = "", starter_code: str = "", story: str = "") -> List[str]:
     combined = f"{title} {objective} {starter_code} {story}".lower()

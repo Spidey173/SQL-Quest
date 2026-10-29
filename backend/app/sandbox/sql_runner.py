@@ -2,6 +2,68 @@ import re
 import sqlite3
 import time
 from typing import Dict, Any, List, Optional
+from app.config import settings
+
+SAFE_SQLITE_PRAGMAS = {
+    "table_info", "table_xinfo", "foreign_key_check",
+    "foreign_key_list", "index_list", "index_info", "collation_list"
+}
+
+def sqlite_security_authorizer(action_code, param1, param2, dbname, source):
+    """
+    Blocks direct filesystem database attachments and unauthorized pragmas
+    to provide a robust in-process sandbox for SQLite execution.
+    """
+    if action_code in (sqlite3.SQLITE_ATTACH, sqlite3.SQLITE_DETACH):
+        return sqlite3.SQLITE_DENY
+    if action_code == sqlite3.SQLITE_PRAGMA:
+        if param1 and str(param1).lower() in SAFE_SQLITE_PRAGMAS:
+            return sqlite3.SQLITE_OK
+        return sqlite3.SQLITE_DENY
+    return sqlite3.SQLITE_OK
+
+
+def split_sql_statements(sql: str) -> List[str]:
+    """
+    Safely splits SQL script into separate executable statements,
+    respecting single quotes, escaped quotes (''), and double quotes.
+    """
+    statements = []
+    current = []
+    in_single = False
+    in_double = False
+    i = 0
+    n = len(sql)
+    while i < n:
+        ch = sql[i]
+        if ch == "'" and not in_double:
+            if in_single and i + 1 < n and sql[i + 1] == "'":
+                current.append("''")
+                i += 2
+                continue
+            in_single = not in_single
+            current.append(ch)
+            i += 1
+            continue
+        elif ch == '"' and not in_single:
+            in_double = not in_double
+            current.append(ch)
+            i += 1
+            continue
+        elif ch == ';' and not in_single and not in_double:
+            stmt = "".join(current).strip()
+            if stmt:
+                statements.append(stmt)
+            current = []
+            i += 1
+            continue
+        current.append(ch)
+        i += 1
+    stmt = "".join(current).strip()
+    if stmt:
+        statements.append(stmt)
+    return statements
+
 
 # Standard sample databases for different categories of SQL questions
 SAMPLE_SCHEMAS = """
@@ -211,6 +273,8 @@ def execute_sql_in_sandbox(
     """
     start_time = time.perf_counter()
     conn = sqlite3.connect(":memory:")
+    # Attach security authorizer to isolate sandbox and block filesystem access
+    conn.set_authorizer(sqlite_security_authorizer)
     cursor = conn.cursor()
 
     # Register custom SQL helper functions commonly used in MySQL/PostgreSQL/Oracle
@@ -313,8 +377,8 @@ def execute_sql_in_sandbox(
                 "execution_time_ms": 0.0
             }
 
-        # Split by semicolons not enclosed within single quotes
-        raw_statements = re.split(r";(?=(?:[^']*'[^']*')*[^']*$)", cleaned_no_comments)
+        # Split statements using robust quote-aware SQL tokenizer
+        raw_statements = split_sql_statements(cleaned_no_comments)
         statements = []
         for s in raw_statements:
             s_clean = s.strip()
@@ -329,6 +393,7 @@ def execute_sql_in_sandbox(
 
         columns = []
         rows = []
+        MAX_DISPLAY_ROWS = 500
 
         if not statements:
             return {
@@ -350,14 +415,23 @@ def execute_sql_in_sandbox(
 
         if cursor.description:
             columns = [desc[0] for desc in cursor.description]
-            raw_rows = cursor.fetchall()
-            # Convert tuples to lists for JSON serialization
-            rows = [list(row) for row in raw_rows]
+            # Safely fetch up to MAX_DISPLAY_ROWS + 1 to prevent OOM on massive result sets
+            raw_rows = cursor.fetchmany(MAX_DISPLAY_ROWS + 1)
+            is_row_capped = len(raw_rows) > MAX_DISPLAY_ROWS
+            rows = [list(row) for row in raw_rows[:MAX_DISPLAY_ROWS]]
 
             col_header = " | ".join(columns)
             divider = "-" * max(len(col_header), 20)
             row_lines = [" | ".join(str(val) if val is not None else "NULL" for val in row) for row in rows]
             stdout_text = f"{col_header}\n{divider}\n" + "\n".join(row_lines) if rows else f"{col_header}\n{divider}\n(0 rows returned)"
+            if is_row_capped:
+                stdout_text += f"\n\n[Display limited to first {MAX_DISPLAY_ROWS} rows to preserve memory]"
+
+            # Enforce output byte limit from config
+            max_output_bytes = getattr(settings, "SANDBOX_MAX_OUTPUT_BYTES", 65536)
+            encoded_out = stdout_text.encode("utf-8")
+            if len(encoded_out) > max_output_bytes:
+                stdout_text = encoded_out[:max_output_bytes].decode("utf-8", errors="ignore") + "\n... [Output truncated: exceeded 64KB limit]"
         else:
             # For data-modifying queries (DELETE / UPDATE), display the updated table state if Person exists
             target_table = None
@@ -369,12 +443,15 @@ def execute_sql_in_sandbox(
                     cursor.execute(f"SELECT id, email FROM {target_table} ORDER BY id")
                     if cursor.description:
                         columns = [desc[0] for desc in cursor.description]
-                        raw_rows = cursor.fetchall()
-                        rows = [list(row) for row in raw_rows]
+                        raw_rows = cursor.fetchmany(MAX_DISPLAY_ROWS + 1)
+                        is_row_capped = len(raw_rows) > MAX_DISPLAY_ROWS
+                        rows = [list(row) for row in raw_rows[:MAX_DISPLAY_ROWS]]
                         col_header = " | ".join(columns)
                         divider = "-" * max(len(col_header), 20)
                         row_lines = [" | ".join(str(val) if val is not None else "NULL" for val in row) for row in rows]
                         stdout_text = f"{col_header}\n{divider}\n" + "\n".join(row_lines) if rows else f"{col_header}\n{divider}\n(0 rows returned)"
+                        if is_row_capped:
+                            stdout_text += f"\n\n[Display limited to first {MAX_DISPLAY_ROWS} rows]"
                     else:
                         columns = []
                         rows = []
@@ -436,13 +513,31 @@ def execute_sql_in_sandbox(
         err_msg = str(err)
         if "interrupted" in err_msg.lower():
             err_msg = f"Query Execution Timed Out: Execution exceeded {timeout_seconds}s limit."
+        elif "not authorized" in err_msg.lower():
+            err_msg = "Security Violation: Command is disabled for sandbox safety (filesystem access or unauthorized operation)."
         return {
             "success": False,
             "stdout": "",
             "stderr": f"SQL Execution Error: {err_msg}",
             "columns": [],
             "rows": [],
-            "execution_time_ms": elapsed_ms
+            "execution_time_ms": elapsed_ms,
+            "security_error": err_msg if "not authorized" in str(err).lower() else None
+        }
+    except sqlite3.DatabaseError as err:
+        elapsed_ms = round((time.perf_counter() - start_time) * 1000, 2)
+        err_msg = str(err)
+        is_auth = "not authorized" in err_msg.lower()
+        if is_auth:
+            err_msg = "Security Violation: Command is disabled for sandbox safety (filesystem access or unauthorized operation)."
+        return {
+            "success": False,
+            "stdout": "",
+            "stderr": f"SQL Security/Database Error: {err_msg}",
+            "columns": [],
+            "rows": [],
+            "execution_time_ms": elapsed_ms,
+            "security_error": err_msg if is_auth else None
         }
     except sqlite3.Error as err:
         elapsed_ms = round((time.perf_counter() - start_time) * 1000, 2)
