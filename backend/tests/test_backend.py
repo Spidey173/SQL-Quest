@@ -92,7 +92,7 @@ async def test_evaluator_rejects_wrong_columns():
 @pytest.mark.asyncio
 async def test_sandbox_sql_timeout():
     from app.sandbox.sql_runner import execute_sql_in_sandbox
-    infinite_cte = "WITH RECURSIVE cnt(x) AS (SELECT 1 UNION ALL SELECT x+1 FROM cnt) SELECT * FROM cnt;"
+    infinite_cte = "WITH RECURSIVE cnt(x) AS (SELECT 1 UNION ALL SELECT x+1 FROM cnt) SELECT count(*) FROM cnt;"
     res = execute_sql_in_sandbox(infinite_cte, timeout_seconds=1.0)
     assert res["success"] is False
     assert "Timed Out" in res["stderr"]

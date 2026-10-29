@@ -210,29 +210,28 @@ export default function TelemetryPage() {
   }, [allProblems, solvedIds]);
 
   // 2. Daily Problem-Solving Velocity Analytics (Scrollable Timeline)
-  const [daysRange, setDaysRange] = useState<14 | 30 | 60 | 90>(30);
-  const autoAdjustedRef = React.useRef(false);
+  const [componentMountTime] = useState(() => Date.now());
+  const [userSelectedRange, setUserSelectedRange] = useState<14 | 30 | 60 | 90 | null>(null);
 
-  // Auto-detect optimal range so past solves are immediately visible
-  useEffect(() => {
-    if (!autoAdjustedRef.current && submissions.length > 0) {
-      autoAdjustedRef.current = true;
-      const latestTs = Math.max(...submissions.map((s) => s.timestamp));
-      const daysAgo = Math.floor((Date.now() - latestTs) / (1000 * 60 * 60 * 24));
-      if (daysAgo >= 30 && daysAgo < 60) {
-        setDaysRange(60);
-      } else if (daysAgo >= 60) {
-        setDaysRange(90);
-      }
-    }
-  }, [submissions]);
+  // Derive optimal daysRange dynamically without setState in effects
+  const defaultRange = useMemo<14 | 30 | 60 | 90>(() => {
+    if (!submissions.length) return 30;
+    const latestTs = Math.max(...submissions.map((s) => s.timestamp));
+    const daysAgo = Math.floor((componentMountTime - latestTs) / (1000 * 60 * 60 * 24));
+    if (daysAgo >= 30 && daysAgo < 60) return 60;
+    if (daysAgo >= 60) return 90;
+    return 30;
+  }, [submissions, componentMountTime]);
+
+  const daysRange = userSelectedRange ?? defaultRange;
+  const setDaysRange = (r: 14 | 30 | 60 | 90) => setUserSelectedRange(r);
 
   const lastActiveInfo = useMemo(() => {
     if (!submissions.length) return null;
     const sorted = submissions.slice().sort((a, b) => b.timestamp - a.timestamp);
     const latest = sorted[0];
     const latestDate = new Date(latest.timestamp);
-    const daysAgo = Math.floor((Date.now() - latest.timestamp) / (1000 * 60 * 60 * 24));
+    const daysAgo = Math.floor((componentMountTime - latest.timestamp) / (1000 * 60 * 60 * 24));
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     let suggested: 14 | 30 | 60 | 90 = 30;
     if (daysAgo >= 30 && daysAgo < 60) suggested = 60;
@@ -243,7 +242,7 @@ export default function TelemetryPage() {
       daysAgo,
       suggestedRange: suggested,
     };
-  }, [submissions]);
+  }, [submissions, componentMountTime]);
 
   const [selectedDay, setSelectedDay] = useState<{
     date: string;
